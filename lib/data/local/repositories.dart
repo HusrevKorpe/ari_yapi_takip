@@ -6,7 +6,13 @@ import 'package:uuid/uuid.dart';
 import '../../shared/attendance_status.dart';
 import '../../shared/month_utils.dart';
 import '../../shared/payroll_calculator.dart';
+import '../sync/sync_context.dart';
+import '../sync/sync_mappers.dart';
 import 'app_database.dart';
+
+// ---------------------------------------------------------------------------
+// DTOs
+// ---------------------------------------------------------------------------
 
 class AttendanceInput {
   const AttendanceInput({
@@ -53,6 +59,7 @@ class PayrollAttendanceDay {
     required this.dayEquivalent,
     required this.dailyAmount,
     this.siteId,
+    this.siteBonus = 0,
   });
 
   final DateTime date;
@@ -60,24 +67,30 @@ class PayrollAttendanceDay {
   final double dayEquivalent;
   final double dailyAmount;
   final String? siteId;
+  final double siteBonus;
 }
 
+// ---------------------------------------------------------------------------
+// WorkerRepository
+// ---------------------------------------------------------------------------
+
 class WorkerRepository {
-  WorkerRepository(this._db, this._uuid);
+  WorkerRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Stream<List<Worker>> watchActiveWorkers() {
     final query = _db.select(_db.workers)
-      ..where((w) => w.isActive.equals(true))
+      ..where((w) => w.isActive.equals(true) & w.deletedAt.isNull())
       ..orderBy([(w) => OrderingTerm(expression: w.fullName)]);
     return query.watch();
   }
 
   Future<List<Worker>> getActiveWorkers() {
     final query = _db.select(_db.workers)
-      ..where((w) => w.isActive.equals(true))
+      ..where((w) => w.isActive.equals(true) & w.deletedAt.isNull())
       ..orderBy([(w) => OrderingTerm(expression: w.fullName)]);
     return query.get();
   }
@@ -88,36 +101,47 @@ class WorkerRepository {
     required double dailyWage,
     String? defaultSiteId,
     String? notes,
+    String payFrequency = 'weekly',
     bool isActive = true,
   }) async {
     final workerId = id ?? _uuid.v4();
-    await _db
-        .into(_db.workers)
-        .insertOnConflictUpdate(
-          WorkersCompanion.insert(
-            id: workerId,
-            fullName: fullName,
-            dailyWage: dailyWage,
-            defaultSiteId: Value(defaultSiteId),
-            notes: Value(notes),
-            isActive: Value(isActive),
-            updatedAt: Value(DateTime.now()),
-          ),
-        );
+    final now = DateTime.now();
+
+    int nextVersion = 1;
+    if (id != null) {
+      final existing = await (_db.select(_db.workers)
+            ..where((w) => w.id.equals(id)))
+          .getSingleOrNull();
+      if (existing != null) nextVersion = existing.syncVersion + 1;
+    }
+
+    await _db.into(_db.workers).insertOnConflictUpdate(
+      WorkersCompanion.insert(
+        id: workerId,
+        fullName: fullName,
+        dailyWage: dailyWage,
+        defaultSiteId: Value(defaultSiteId),
+        payFrequency: Value(payFrequency),
+        notes: Value(notes),
+        isActive: Value(isActive),
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
+    );
+
+    final saved = await (_db.select(_db.workers)
+          ..where((w) => w.id.equals(workerId)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'worker',
       entityId: workerId,
       action: 'upsert',
-      payload: {
-        'id': workerId,
-        'fullName': fullName,
-        'dailyWage': dailyWage,
-        'defaultSiteId': defaultSiteId,
-        'notes': notes,
-        'isActive': isActive,
-      },
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
 
     await _db.addAudit(
@@ -130,21 +154,32 @@ class WorkerRepository {
 
   Future<void> deactivateWorker({required String workerId}) async {
     final now = DateTime.now();
+    final existing = await (_db.select(_db.workers)
+          ..where((w) => w.id.equals(workerId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
 
     await (_db.update(_db.workers)..where((w) => w.id.equals(workerId))).write(
-      WorkersCompanion(isActive: const Value(false), updatedAt: Value(now)),
+      WorkersCompanion(
+        isActive: const Value(false),
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
     );
+
+    final saved = await (_db.select(_db.workers)
+          ..where((w) => w.id.equals(workerId)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'worker',
       entityId: workerId,
       action: 'upsert',
-      payload: {
-        'id': workerId,
-        'isActive': false,
-        'updatedAt': now.toIso8601String(),
-      },
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
 
     await _db.addAudit(
@@ -156,15 +191,20 @@ class WorkerRepository {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SiteRepository
+// ---------------------------------------------------------------------------
+
 class SiteRepository {
-  SiteRepository(this._db, this._uuid);
+  SiteRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Stream<List<Site>> watchActiveSites() {
     final query = _db.select(_db.sites)
-      ..where((s) => s.isActive.equals(true))
+      ..where((s) => s.isActive.equals(true) & s.deletedAt.isNull())
       ..orderBy([(s) => OrderingTerm(expression: s.name)]);
     return query.watch();
   }
@@ -175,23 +215,28 @@ class SiteRepository {
     double dailyBonus = 0,
   }) async {
     final id = _uuid.v4();
-    await _db
-        .into(_db.sites)
-        .insert(
-          SitesCompanion.insert(
-            id: id,
-            name: name,
-            code: code,
-            dailyBonus: Value(dailyBonus),
-          ),
-        );
+    await _db.into(_db.sites).insert(
+      SitesCompanion.insert(
+        id: id,
+        name: name,
+        code: code,
+        dailyBonus: Value(dailyBonus),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: const Value(1),
+      ),
+    );
+
+    final saved =
+        await (_db.select(_db.sites)..where((s) => s.id.equals(id))).getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'site',
       entityId: id,
-      action: 'create',
-      payload: {'id': id, 'name': name, 'code': code, 'dailyBonus': dailyBonus},
+      action: 'upsert',
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 
@@ -199,44 +244,81 @@ class SiteRepository {
     required String siteId,
     required double dailyBonus,
   }) async {
+    final existing = await (_db.select(_db.sites)
+          ..where((s) => s.id.equals(siteId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
     await (_db.update(_db.sites)..where((s) => s.id.equals(siteId))).write(
-      SitesCompanion(dailyBonus: Value(dailyBonus)),
+      SitesCompanion(
+        dailyBonus: Value(dailyBonus),
+        updatedAt: Value(DateTime.now()),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
     );
+
+    final saved = await (_db.select(_db.sites)
+          ..where((s) => s.id.equals(siteId)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'site',
       entityId: siteId,
       action: 'upsert',
-      payload: {'id': siteId, 'dailyBonus': dailyBonus},
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 
   Future<void> deactivateSite({required String siteId}) async {
+    final existing = await (_db.select(_db.sites)
+          ..where((s) => s.id.equals(siteId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
     await (_db.update(_db.sites)..where((s) => s.id.equals(siteId))).write(
-      const SitesCompanion(isActive: Value(false)),
+      SitesCompanion(
+        isActive: const Value(false),
+        updatedAt: Value(DateTime.now()),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
     );
+
+    final saved = await (_db.select(_db.sites)
+          ..where((s) => s.id.equals(siteId)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'site',
       entityId: siteId,
       action: 'upsert',
-      payload: {'id': siteId, 'isActive': false},
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 }
 
+// ---------------------------------------------------------------------------
+// AttendanceRepository
+// ---------------------------------------------------------------------------
+
 class AttendanceRepository {
-  AttendanceRepository(this._db, this._uuid);
+  AttendanceRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Stream<List<AttendanceEntry>> watchByDate(DateTime date) {
     final normalized = normalizeDay(date);
     final query = _db.select(_db.attendanceEntries)
-      ..where((a) => a.workDate.equals(normalized))
+      ..where((a) => a.workDate.equals(normalized) & a.deletedAt.isNull())
       ..orderBy([(a) => OrderingTerm(expression: a.workerId)]);
     return query.watch();
   }
@@ -246,6 +328,17 @@ class AttendanceRepository {
     required List<AttendanceInput> entries,
   }) async {
     final normalized = normalizeDay(date);
+    final now = DateTime.now();
+
+    // Mevcut kayıtların syncVersion'larını önceden çek — conflict durumunda
+    // DoUpdate içinde doğru versiyonu kullanmak için.
+    final existingEntries = await (_db.select(_db.attendanceEntries)
+          ..where((a) => a.workDate.equals(normalized) & a.deletedAt.isNull()))
+        .get();
+    final existingVersions = {
+      for (final e in existingEntries) e.workerId: e.syncVersion,
+    };
+
     await _db.transaction(() async {
       for (final entry in entries) {
         if (entry.status.requiresSite &&
@@ -255,45 +348,55 @@ class AttendanceRepository {
           );
         }
 
+        final nextVersion = (existingVersions[entry.workerId] ?? 0) + 1;
         final id = _uuid.v4();
-        await _db
-            .into(_db.attendanceEntries)
-            .insert(
-              AttendanceEntriesCompanion.insert(
-                id: id,
-                workerId: entry.workerId,
-                workDate: normalized,
-                status: entry.status.code,
-                siteId: Value(entry.siteId),
-                note: Value(entry.note),
-                updatedAt: Value(DateTime.now()),
-              ),
-              onConflict: DoUpdate(
-                (_) => AttendanceEntriesCompanion(
-                  status: Value(entry.status.code),
-                  siteId: Value(entry.siteId),
-                  note: Value(entry.note),
-                  updatedAt: Value(DateTime.now()),
-                ),
-                target: [
-                  _db.attendanceEntries.workerId,
-                  _db.attendanceEntries.workDate,
-                ],
-              ),
-            );
+        await _db.into(_db.attendanceEntries).insert(
+          AttendanceEntriesCompanion.insert(
+            id: id,
+            workerId: entry.workerId,
+            workDate: normalized,
+            status: entry.status.code,
+            siteId: Value(entry.siteId),
+            note: Value(entry.note),
+            updatedAt: Value(now),
+            lastModifiedBy: Value(_ctx.userId),
+            deviceId: Value(_ctx.deviceId),
+            syncVersion: Value(nextVersion),
+          ),
+          onConflict: DoUpdate(
+            (_) => AttendanceEntriesCompanion(
+              status: Value(entry.status.code),
+              siteId: Value(entry.siteId),
+              note: Value(entry.note),
+              updatedAt: Value(now),
+              lastModifiedBy: Value(_ctx.userId),
+              deviceId: Value(_ctx.deviceId),
+              syncVersion: Value(nextVersion),
+            ),
+            target: [
+              _db.attendanceEntries.workerId,
+              _db.attendanceEntries.workDate,
+            ],
+          ),
+        );
+
+        // Read back to get actual id (may differ on conflict) and sync
+        final saved = await (_db.select(_db.attendanceEntries)
+              ..where(
+                (a) =>
+                    a.workerId.equals(entry.workerId) &
+                    a.workDate.equals(normalized) &
+                    a.deletedAt.isNull(),
+              ))
+            .getSingle();
 
         await _db.upsertQueueItem(
           id: _uuid.v4(),
           entityType: 'attendance',
-          entityId: '${entry.workerId}-${normalized.toIso8601String()}',
+          entityId: saved.id,
           action: 'upsert',
-          payload: {
-            'workerId': entry.workerId,
-            'workDate': normalized.toIso8601String(),
-            'status': entry.status.code,
-            'siteId': entry.siteId,
-            'note': entry.note,
-          },
+          payload: saved.toSyncMap(),
+          organizationId: _ctx.organizationId,
         );
       }
 
@@ -311,13 +414,14 @@ class AttendanceRepository {
     required DateTime start,
     required DateTime end,
   }) async {
-    final entries =
-        await (_db.select(_db.attendanceEntries)..where(
-              (a) =>
-                  a.workerId.equals(workerId) &
-                  a.workDate.isBetweenValues(start, end),
-            ))
-            .get();
+    final entries = await (_db.select(_db.attendanceEntries)
+          ..where(
+            (a) =>
+                a.workerId.equals(workerId) &
+                a.workDate.isBetweenValues(start, end) &
+                a.deletedAt.isNull(),
+          ))
+        .get();
 
     if (entries.isEmpty) return 0;
 
@@ -329,9 +433,9 @@ class AttendanceRepository {
 
     if (siteIds.isEmpty) return 0;
 
-    final sites = await (_db.select(
-      _db.sites,
-    )..where((s) => s.id.isIn(siteIds))).get();
+    final sites = await (_db.select(_db.sites)
+          ..where((s) => s.id.isIn(siteIds)))
+        .get();
 
     final bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
 
@@ -357,25 +461,48 @@ class AttendanceRepository {
       ..where(
         (a) =>
             a.workerId.equals(workerId) &
-            a.workDate.isBetweenValues(start, end),
+            a.workDate.isBetweenValues(start, end) &
+            a.deletedAt.isNull(),
       )
       ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
     return query.get();
   }
+
+  Stream<List<AttendanceEntry>> watchAllEntriesInRange({
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final query = _db.select(_db.attendanceEntries)
+      ..where(
+        (a) =>
+            a.workDate.isBetweenValues(start, end) &
+            a.deletedAt.isNull(),
+      )
+      ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
+    return query.watch();
+  }
 }
 
+// ---------------------------------------------------------------------------
+// ExpenseRepository
+// ---------------------------------------------------------------------------
+
 class ExpenseRepository {
-  ExpenseRepository(this._db, this._uuid);
+  ExpenseRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Stream<List<Expense>> watchMonth(DateTime month) {
     final start = monthStart(month);
     final end = monthEnd(month);
 
     final query = _db.select(_db.expenses)
-      ..where((e) => e.expenseDate.isBetweenValues(start, end))
+      ..where(
+        (e) =>
+            e.expenseDate.isBetweenValues(start, end) & e.deletedAt.isNull(),
+      )
       ..orderBy([(e) => OrderingTerm.desc(e.expenseDate)]);
     return query.watch();
   }
@@ -390,44 +517,63 @@ class ExpenseRepository {
     final id = _uuid.v4();
     final normalized = normalizeDay(date);
 
-    await _db
-        .into(_db.expenses)
-        .insert(
-          ExpensesCompanion.insert(
-            id: id,
-            expenseDate: normalized,
-            amount: amount,
-            category: category,
-            siteId: Value(siteId),
-            description: Value(description),
-          ),
-        );
+    await _db.into(_db.expenses).insert(
+      ExpensesCompanion.insert(
+        id: id,
+        expenseDate: normalized,
+        amount: amount,
+        category: category,
+        siteId: Value(siteId),
+        description: Value(description),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: const Value(1),
+      ),
+    );
+
+    final saved = await (_db.select(_db.expenses)
+          ..where((e) => e.id.equals(id)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'expense',
       entityId: id,
-      action: 'create',
-      payload: {
-        'id': id,
-        'expenseDate': normalized.toIso8601String(),
-        'amount': amount,
-        'category': category,
-        'siteId': siteId,
-        'description': description,
-      },
+      action: 'upsert',
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 
   Future<void> deleteExpense({required String expenseId}) async {
-    await (_db.delete(_db.expenses)..where((e) => e.id.equals(expenseId))).go();
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.expenses)
+          ..where((e) => e.id.equals(expenseId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
+    await (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
+        .write(ExpensesCompanion(
+      deletedAt: Value(now),
+      updatedAt: Value(now),
+      lastModifiedBy: Value(_ctx.userId),
+      deviceId: Value(_ctx.deviceId),
+      syncVersion: Value(nextVersion),
+    ));
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'expense',
       entityId: expenseId,
       action: 'delete',
-      payload: {'id': expenseId},
+      payload: {
+        'id': expenseId,
+        'deletedAt': now.toIso8601String(),
+        'lastModifiedBy': _ctx.userId,
+        'deviceId': _ctx.deviceId,
+        'syncVersion': nextVersion,
+      },
+      organizationId: _ctx.organizationId,
     );
 
     await _db.addAudit(
@@ -445,18 +591,24 @@ class ExpenseRepository {
     final totalExp = _db.expenses.amount.sum();
     final query = _db.selectOnly(_db.expenses)
       ..addColumns([totalExp])
-      ..where(_db.expenses.expenseDate.isBetweenValues(start, end));
+      ..where(_db.expenses.expenseDate.isBetweenValues(start, end) &
+          _db.expenses.deletedAt.isNull());
 
     final row = await query.getSingle();
     return row.read(totalExp) ?? 0;
   }
 }
 
+// ---------------------------------------------------------------------------
+// AdvanceDebtRepository
+// ---------------------------------------------------------------------------
+
 class AdvanceDebtRepository {
-  AdvanceDebtRepository(this._db, this._uuid);
+  AdvanceDebtRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Future<void> add({
     required String workerId,
@@ -468,54 +620,112 @@ class AdvanceDebtRepository {
     final id = _uuid.v4();
     final month = monthKey(date);
 
-    await _db
-        .into(_db.advanceDebts)
-        .insert(
-          AdvanceDebtsCompanion.insert(
-            id: id,
-            workerId: workerId,
-            eventDate: normalizeDay(date),
-            type: type,
-            amount: amount,
-            note: Value(note),
-            settledMonth: month,
-          ),
-        );
+    await _db.into(_db.advanceDebts).insert(
+      AdvanceDebtsCompanion.insert(
+        id: id,
+        workerId: workerId,
+        eventDate: normalizeDay(date),
+        type: type,
+        amount: amount,
+        note: Value(note),
+        settledMonth: month,
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: const Value(1),
+      ),
+    );
+
+    final saved = await (_db.select(_db.advanceDebts)
+          ..where((a) => a.id.equals(id)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'advance_debt',
       entityId: id,
-      action: 'create',
-      payload: {
-        'id': id,
-        'workerId': workerId,
-        'eventDate': date.toIso8601String(),
-        'type': type,
-        'amount': amount,
-        'note': note,
-        'settledMonth': month,
-      },
+      action: 'upsert',
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 
+  /// Returns net deductions: advances (deducted) minus debts (owed to worker).
   Future<double> totalDeductions({
     required String workerId,
     required DateTime start,
     required DateTime end,
   }) async {
-    final totalExp = _db.advanceDebts.amount.sum();
-    final query = _db.selectOnly(_db.advanceDebts)
-      ..addColumns([totalExp])
-      ..where(
-        _db.advanceDebts.workerId.equals(workerId) &
-            _db.advanceDebts.eventDate.isBetweenValues(start, end),
-      );
+    final entries = await (_db.select(_db.advanceDebts)
+          ..where(
+            (a) =>
+                a.workerId.equals(workerId) &
+                a.eventDate.isBetweenValues(start, end) &
+                a.deletedAt.isNull(),
+          ))
+        .get();
 
-    final row = await query.getSingle();
-    return row.read(totalExp) ?? 0;
+    double total = 0;
+    for (final e in entries) {
+      if (e.type == 'advance') {
+        total += e.amount;
+      } else if (e.type == 'debt') {
+        total -= e.amount;
+      }
+    }
+    return total;
+  }
+
+  Stream<List<AdvanceDebt>> watchByWorker(String workerId) {
+    final query = _db.select(_db.advanceDebts)
+      ..where((a) => a.workerId.equals(workerId) & a.deletedAt.isNull())
+      ..orderBy([(a) => OrderingTerm.desc(a.eventDate)]);
+    return query.watch();
+  }
+
+  Future<void> delete({required String id}) async {
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.advanceDebts)
+          ..where((a) => a.id.equals(id)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
+    await (_db.update(_db.advanceDebts)..where((a) => a.id.equals(id))).write(
+      AdvanceDebtsCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
+    );
+
+    await _db.upsertQueueItem(
+      id: _uuid.v4(),
+      entityType: 'advance_debt',
+      entityId: id,
+      action: 'delete',
+      payload: {
+        'id': id,
+        'deletedAt': now.toIso8601String(),
+        'lastModifiedBy': _ctx.userId,
+        'deviceId': _ctx.deviceId,
+        'syncVersion': nextVersion,
+      },
+      organizationId: _ctx.organizationId,
+    );
+
+    await _db.addAudit(
+      id: _uuid.v4(),
+      entityType: 'advance_debt',
+      entityId: id,
+      message: 'Avans/Borc kaydi silindi',
+    );
   }
 }
+
+// ---------------------------------------------------------------------------
+// PayrollRepository
+// ---------------------------------------------------------------------------
 
 class PayrollRepository {
   PayrollRepository({
@@ -523,15 +733,18 @@ class PayrollRepository {
     required AttendanceRepository attendanceRepository,
     required AdvanceDebtRepository advanceDebtRepository,
     required Uuid uuid,
+    required SyncContext syncContext,
   }) : _db = database,
        _attendanceRepository = attendanceRepository,
        _advanceDebtRepository = advanceDebtRepository,
-       _uuid = uuid;
+       _uuid = uuid,
+       _ctx = syncContext;
 
   final AppDatabase _db;
   final AttendanceRepository _attendanceRepository;
   final AdvanceDebtRepository _advanceDebtRepository;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Future<PayrollResult> calculate({
     required Worker worker,
@@ -571,67 +784,46 @@ class PayrollRepository {
       end: end,
     );
 
+    final siteIds = attendanceEntries
+        .where((e) => e.siteId != null)
+        .map((e) => e.siteId!)
+        .toSet()
+        .toList();
+    final Map<String, double> bonusBySiteId;
+    if (siteIds.isNotEmpty) {
+      final sites = await (_db.select(_db.sites)
+            ..where((s) => s.id.isIn(siteIds)))
+          .get();
+      bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
+    } else {
+      bonusBySiteId = {};
+    }
+
     final calculation = PayrollCalculator.calculate(
       workedDayEquivalent: worked,
       dailyWage: worker.dailyWage,
       deductions: deductions,
       locationBonus: locationBonus,
     );
-    final attendanceDays = parsedEntries
-        .map((p) {
-          final dayEquivalent = PayrollCalculator.workedEquivalent([p.status]);
-          if (dayEquivalent <= 0) return null;
+    final attendanceDays = parsedEntries.map((p) {
+      final dayEquivalent = PayrollCalculator.workedEquivalent([p.status]);
+      double dayBonus = 0;
+      if (p.status.requiresSite && p.entry.siteId != null) {
+        final bonus = bonusBySiteId[p.entry.siteId] ?? 0;
+        if (bonus > 0) {
+          dayBonus = bonus * dayEquivalent;
+        }
+      }
 
-          return PayrollAttendanceDay(
-            date: p.entry.workDate,
-            status: p.status,
-            dayEquivalent: dayEquivalent,
-            dailyAmount: worker.dailyWage * dayEquivalent,
-            siteId: p.entry.siteId,
-          );
-        })
-        .whereType<PayrollAttendanceDay>()
-        .toList();
-
-    final periodKey = _periodKey(start, end);
-
-    await _db
-        .into(_db.payrollSnapshots)
-        .insert(
-          PayrollSnapshotsCompanion.insert(
-            id: _uuid.v4(),
-            workerId: worker.id,
-            month: periodKey,
-            workedDayEquivalent: calculation.workedDayEquivalent,
-            gross: calculation.gross,
-            deductions: calculation.deductions,
-            net: calculation.net,
-          ),
-          onConflict: DoUpdate(
-            (_) => PayrollSnapshotsCompanion(
-              workedDayEquivalent: Value(calculation.workedDayEquivalent),
-              gross: Value(calculation.gross),
-              deductions: Value(calculation.deductions),
-              net: Value(calculation.net),
-            ),
-            target: [_db.payrollSnapshots.workerId, _db.payrollSnapshots.month],
-          ),
-        );
-
-    await _db.upsertQueueItem(
-      id: _uuid.v4(),
-      entityType: 'payroll_snapshot',
-      entityId: '${worker.id}-$periodKey',
-      action: 'upsert',
-      payload: {
-        'workerId': worker.id,
-        'month': periodKey,
-        'workedDayEquivalent': calculation.workedDayEquivalent,
-        'gross': calculation.gross,
-        'deductions': calculation.deductions,
-        'net': calculation.net,
-      },
-    );
+      return PayrollAttendanceDay(
+        date: p.entry.workDate,
+        status: p.status,
+        dayEquivalent: dayEquivalent,
+        dailyAmount: worker.dailyWage * dayEquivalent,
+        siteId: p.entry.siteId,
+        siteBonus: dayBonus,
+      );
+    }).toList();
 
     return PayrollResult(
       worker: worker,
@@ -646,6 +838,83 @@ class PayrollRepository {
     );
   }
 
+  Future<void> saveSnapshot(PayrollResult result) async {
+    final periodKey = _periodKey(result.periodStart, result.periodEnd);
+    final now = DateTime.now();
+
+    final existing = await (_db.select(_db.payrollSnapshots)
+          ..where(
+            (s) =>
+                s.workerId.equals(result.worker.id) &
+                s.month.equals(periodKey),
+          ))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
+    await _db.into(_db.payrollSnapshots).insert(
+      PayrollSnapshotsCompanion.insert(
+        id: existing?.id ?? _uuid.v4(),
+        workerId: result.worker.id,
+        month: periodKey,
+        workedDayEquivalent: result.workedDayEquivalent,
+        gross: result.gross,
+        deductions: result.deductions,
+        net: result.net,
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ),
+      onConflict: DoUpdate(
+        (_) => PayrollSnapshotsCompanion(
+          workedDayEquivalent: Value(result.workedDayEquivalent),
+          gross: Value(result.gross),
+          deductions: Value(result.deductions),
+          net: Value(result.net),
+          updatedAt: Value(now),
+          lastModifiedBy: Value(_ctx.userId),
+          deviceId: Value(_ctx.deviceId),
+          syncVersion: Value(nextVersion),
+        ),
+        target: [_db.payrollSnapshots.workerId, _db.payrollSnapshots.month],
+      ),
+    );
+
+    final snapshot = await (_db.select(_db.payrollSnapshots)
+          ..where(
+            (s) =>
+                s.workerId.equals(result.worker.id) &
+                s.month.equals(periodKey),
+          ))
+        .getSingle();
+
+    await _db.upsertQueueItem(
+      id: _uuid.v4(),
+      entityType: 'payroll_snapshot',
+      entityId: snapshot.id,
+      action: 'upsert',
+      payload: snapshot.toSyncMap(),
+      organizationId: _ctx.organizationId,
+    );
+  }
+
+  Future<PayrollSnapshot?> getSnapshot({
+    required String workerId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+  }) async {
+    final key = _periodKey(periodStart, periodEnd);
+    final query = _db.select(_db.payrollSnapshots)
+      ..where(
+        (s) =>
+            s.workerId.equals(workerId) &
+            s.month.equals(key) &
+            s.deletedAt.isNull(),
+      );
+    final results = await query.get();
+    return results.isEmpty ? null : results.first;
+  }
+
   String _periodKey(DateTime start, DateTime end) {
     String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -653,11 +922,16 @@ class PayrollRepository {
   }
 }
 
+// ---------------------------------------------------------------------------
+// PaymentRepository
+// ---------------------------------------------------------------------------
+
 class PaymentRepository {
-  PaymentRepository(this._db, this._uuid);
+  PaymentRepository(this._db, this._uuid, this._ctx);
 
   final AppDatabase _db;
   final Uuid _uuid;
+  final SyncContext _ctx;
 
   Future<void> recordPayment({
     required String workerId,
@@ -666,43 +940,96 @@ class PaymentRepository {
     required double amount,
   }) async {
     final id = _uuid.v4();
-    await _db
-        .into(_db.payrollPayments)
-        .insert(
-          PayrollPaymentsCompanion.insert(
-            id: id,
-            workerId: workerId,
-            periodStart: periodStart,
-            periodEnd: periodEnd,
-            amount: amount,
-            paidAt: DateTime.now(),
-          ),
-        );
+    final now = DateTime.now();
+
+    await _db.into(_db.payrollPayments).insert(
+      PayrollPaymentsCompanion.insert(
+        id: id,
+        workerId: workerId,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        amount: amount,
+        paidAt: now,
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: const Value(1),
+      ),
+    );
+
+    final saved = await (_db.select(_db.payrollPayments)
+          ..where((p) => p.id.equals(id)))
+        .getSingle();
 
     await _db.upsertQueueItem(
       id: _uuid.v4(),
       entityType: 'payroll_payment',
       entityId: id,
-      action: 'create',
-      payload: {
-        'id': id,
-        'workerId': workerId,
-        'periodStart': periodStart.toIso8601String(),
-        'periodEnd': periodEnd.toIso8601String(),
-        'amount': amount,
-      },
+      action: 'upsert',
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
     );
   }
 
   Future<DateTime?> lastPaymentEnd(String workerId) async {
     final query = _db.select(_db.payrollPayments)
-      ..where((p) => p.workerId.equals(workerId))
+      ..where((p) => p.workerId.equals(workerId) & p.deletedAt.isNull())
       ..orderBy([(p) => OrderingTerm.desc(p.periodEnd)])
       ..limit(1);
     final results = await query.get();
     return results.isEmpty ? null : results.first.periodEnd;
   }
+
+  Stream<List<PayrollPayment>> watchWorkerPayments(String workerId) {
+    final query = _db.select(_db.payrollPayments)
+      ..where((p) => p.workerId.equals(workerId) & p.deletedAt.isNull())
+      ..orderBy([(p) => OrderingTerm.desc(p.paidAt)]);
+    return query.watch();
+  }
+
+  Future<void> deletePayment({required String paymentId}) async {
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.payrollPayments)
+          ..where((p) => p.id.equals(paymentId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
+    await (_db.update(_db.payrollPayments)
+          ..where((p) => p.id.equals(paymentId)))
+        .write(PayrollPaymentsCompanion(
+      deletedAt: Value(now),
+      updatedAt: Value(now),
+      lastModifiedBy: Value(_ctx.userId),
+      deviceId: Value(_ctx.deviceId),
+      syncVersion: Value(nextVersion),
+    ));
+
+    await _db.upsertQueueItem(
+      id: _uuid.v4(),
+      entityType: 'payroll_payment',
+      entityId: paymentId,
+      action: 'delete',
+      payload: {
+        'id': paymentId,
+        'deletedAt': now.toIso8601String(),
+        'lastModifiedBy': _ctx.userId,
+        'deviceId': _ctx.deviceId,
+        'syncVersion': nextVersion,
+      },
+      organizationId: _ctx.organizationId,
+    );
+
+    await _db.addAudit(
+      id: _uuid.v4(),
+      entityType: 'payroll_payment',
+      entityId: paymentId,
+      message: 'Odeme iptal edildi',
+    );
+  }
 }
+
+// ---------------------------------------------------------------------------
+// SyncQueueRepository
+// ---------------------------------------------------------------------------
 
 class SyncQueueRepository {
   SyncQueueRepository(this._db);
@@ -726,9 +1053,9 @@ class SyncQueueRepository {
   }
 
   Future<void> markSynced(String id) {
-    return (_db.update(
-      _db.syncQueueItems,
-    )..where((q) => q.id.equals(id))).write(
+    return (_db.update(_db.syncQueueItems)
+          ..where((q) => q.id.equals(id)))
+        .write(
       SyncQueueItemsCompanion(
         status: const Value('done'),
         processedAt: Value(DateTime.now()),
@@ -737,11 +1064,12 @@ class SyncQueueRepository {
   }
 
   Future<void> markFailed(String id, {required int retryCount}) {
-    return (_db.update(
-      _db.syncQueueItems,
-    )..where((q) => q.id.equals(id))).write(
+    final status = retryCount >= 5 ? 'failed_permanent' : 'pending';
+    return (_db.update(_db.syncQueueItems)
+          ..where((q) => q.id.equals(id)))
+        .write(
       SyncQueueItemsCompanion(
-        status: const Value('pending'),
+        status: Value(status),
         retryCount: Value(retryCount),
       ),
     );

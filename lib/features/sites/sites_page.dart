@@ -21,6 +21,58 @@ class SitesPage extends ConsumerWidget {
     final sitesAsync = ref.watch(sitesPageProvider);
 
     return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Row(
+          children: [
+            Icon(Icons.location_city_rounded, color: _accent, size: 26),
+            SizedBox(width: 10),
+            Text(
+              'Santiyeler',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF161616),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [_accent, _accentLight],
+                ),
+              ),
+              child: FilledButton.icon(
+                onPressed: () => _showAddDialog(context, ref),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text(
+                  'Ekle',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: sitesAsync.when(
         data: (sites) {
           return SafeArea(
@@ -28,30 +80,10 @@ class SitesPage extends ConsumerWidget {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_city_rounded,
-                            color: _accent,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 10),
-                          const Expanded(
-                            child: Text(
-                              'Santiyeler',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
                       const Text(
                         'ILCE / SANTIYE LISTESI',
                         style: TextStyle(
@@ -97,33 +129,6 @@ class SitesPage extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text(error.toString())),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context, ref),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: Ink(
-          width: 86,
-          height: 86,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [_accent, _accentLight],
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x26000000),
-                blurRadius: 14,
-                offset: Offset(0, 7),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.add, size: 44, color: Colors.white),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -131,145 +136,233 @@ class SitesPage extends ConsumerWidget {
     final nameController = TextEditingController();
     final codeController = TextEditingController();
 
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Container(
-            decoration: BoxDecoration(
-              color: _cardBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFD0D0D4)),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Yeni Santiye',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
+        final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(12, 0, 12, viewInsets + 12),
+          child: Stack(
+            children: [
+              Positioned(
+                top: 28,
+                right: 24,
+                child: Container(
+                  width: 92,
+                  height: 92,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD4D4D4)),
-                  ),
-                  child: TextField(
-                    controller: nameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Ilce / Santiye Adi',
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                      border: InputBorder.none,
-                    ),
+                    color: const Color(0x2233A186),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Container(
+              ),
+              Positioned(
+                top: 108,
+                left: 18,
+                child: Container(
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFD4D4D4)),
-                  ),
-                  child: TextField(
-                    controller: codeController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Kisaltma (Opsiyonel)',
-                      hintText: 'orn: KCB',
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                      border: InputBorder.none,
-                    ),
+                    color: const Color(0xFFCFE6DD),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF1A1A1A),
-                          side: const BorderSide(color: Color(0xFFD2D2D2)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F7F4),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFD2E3DC)),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFBFD0C9),
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'Iptal',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DecoratedBox(
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [_accent, _accentLight],
-                          ),
+                          color: const Color(0xFFDCEEE6),
+                          borderRadius: BorderRadius.circular(999),
                         ),
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () async {
-                            final name = nameController.text.trim();
-                            if (name.isEmpty) return;
-                            final code = codeController.text.trim().isEmpty
-                                ? name.substring(0, name.length >= 3 ? 3 : name.length).toUpperCase()
-                                : codeController.text.trim().toUpperCase();
-
-                            await ref
-                                .read(siteRepositoryProvider)
-                                .createSite(name: name, code: code, dailyBonus: 0);
-
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                            }
-                          },
-                          child: const Text(
-                            'Kaydet',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
-                            ),
+                        child: const Text(
+                          'YENI SANTIYE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.1,
+                            color: Color(0xFF245749),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      Text(
+                        'Yeni Santiye',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF16372E),
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Santiye ya da ilceyi temiz bir kartla ekleyin.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF5E706A),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: nameController,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: _sheetInputDecoration(
+                          label: 'Ilce / Santiye Adi',
+                          fillColor: const Color(0xFFFBFEFC),
+                          borderColor: const Color(0xFFD3E3DC),
+                          focusedColor: _accent,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: codeController,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: _sheetInputDecoration(
+                          label: 'Kisaltma (Opsiyonel)',
+                          hint: 'orn: KCB',
+                          fillColor: const Color(0xFFFBFEFC),
+                          borderColor: const Color(0xFFD3E3DC),
+                          focusedColor: _accent,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF5F6C67),
+                                side: const BorderSide(
+                                  color: Color(0xFFD3E3DC),
+                                ),
+                                backgroundColor: const Color(0xFFFBFEFC),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text(
+                                'Vazgec',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _accent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 15,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              onPressed: () async {
+                                final name = nameController.text.trim();
+                                if (name.isEmpty) return;
+                                final code = codeController.text.trim().isEmpty
+                                    ? name
+                                          .substring(
+                                            0,
+                                            name.length >= 3 ? 3 : name.length,
+                                          )
+                                          .toUpperCase()
+                                    : codeController.text.trim().toUpperCase();
+
+                                await ref
+                                    .read(siteRepositoryProvider)
+                                    .createSite(
+                                      name: name,
+                                      code: code,
+                                      dailyBonus: 0,
+                                    );
+
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                }
+                              },
+                              child: const Text(
+                                'Kaydet',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  InputDecoration _sheetInputDecoration({
+    required String label,
+    required Color fillColor,
+    required Color borderColor,
+    required Color focusedColor,
+    String? hint,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: fillColor,
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: focusedColor, width: 1.4),
+      ),
     );
   }
 
@@ -497,9 +590,7 @@ class SitesPage extends ConsumerWidget {
 
     if (confirmed != true) return;
 
-    await ref
-        .read(siteRepositoryProvider)
-        .deactivateSite(siteId: site.id);
+    await ref.read(siteRepositoryProvider).deactivateSite(siteId: site.id);
 
     if (context.mounted) {
       showSuccessSnackBar(context, 'Santiye silindi.');

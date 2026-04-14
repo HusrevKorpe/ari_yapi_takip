@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "873095408162",
+    "project_id": "ari-yapi-takip",
+    "storage_bucket": "ari-yapi-takip.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:873095408162:android:d777c44c5206467af7787b",
+        "android_client_info": {
+          "package_name": "com.example.ari_yapi_takip"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlCPxJpUSHp0hjwxQqspSihT3dTjJ-Uyk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

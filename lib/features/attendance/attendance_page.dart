@@ -8,6 +8,7 @@ import '../../shared/attendance_status.dart';
 import '../../shared/formatters.dart';
 import '../../shared/month_utils.dart';
 import '../../shared/snackbar_helper.dart';
+import 'attendance_grid_page.dart';
 
 final attendanceWorkersProvider = StreamProvider<List<Worker>>((ref) {
   return ref.watch(workerRepositoryProvider).watchActiveWorkers();
@@ -35,6 +36,10 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   DateTime _selectedDate = normalizeDay(DateTime.now());
   final Map<String, AttendanceStatus> _statusByWorker = {};
   final Map<String, String?> _siteByWorker = {};
+  bool _savedSuccessfully = false;
+
+  bool get _isDirty =>
+      _statusByWorker.isNotEmpty || _siteByWorker.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -126,15 +131,69 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
         ],
       ),
       actions: [
-        TextButton.icon(
-          onPressed: () => _save(context, ref),
-          icon: const Icon(Icons.save_outlined, size: 18),
-          label: const Text('Kaydet'),
-          style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF0A7A5C),
-            textStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: OutlinedButton.icon(
+            onPressed: _isDirty ? () => _save(context, ref) : null,
+            icon: Icon(
+              _savedSuccessfully && !_isDirty
+                  ? Icons.check_rounded
+                  : Icons.save_rounded,
+              size: 17,
+            ),
+            label: Text(
+              _savedSuccessfully && !_isDirty ? 'Kaydedildi' : 'Kaydet',
+            ),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _isDirty
+                  ? const Color(0xFF8A7300)
+                  : _savedSuccessfully
+                  ? const Color(0xFF2E7D32)
+                  : const Color(0xFFAAAAAA),
+              side: BorderSide(
+                color: _isDirty
+                    ? const Color(0xFF8A7300)
+                    : _savedSuccessfully
+                    ? const Color(0xFF2E7D32)
+                    : const Color(0xFFCCCCCC),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const AttendanceGridPage(),
+              ),
+            ),
+            icon: const Icon(Icons.grid_on_rounded, size: 17),
+            label: const Text('Cizelge'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF8A7300),
+              side: const BorderSide(color: Color(0xFF8A7300)),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+                letterSpacing: 0.2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           ),
         ),
@@ -153,6 +212,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                   _selectedDate = normalizeDay(picked);
                   _statusByWorker.clear();
                   _siteByWorker.clear();
+                  _savedSuccessfully = false;
                 });
               }
             },
@@ -200,9 +260,9 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
 
       final resolvedSiteId = status.requiresSite
           ? (_siteByWorker[worker.id] ??
-              existingByWorker[worker.id]?.siteId ??
-              worker.defaultSiteId ??
-              fallbackSiteId)
+                existingByWorker[worker.id]?.siteId ??
+                worker.defaultSiteId ??
+                fallbackSiteId)
           : null;
 
       if (status.requiresSite && resolvedSiteId == null) {
@@ -229,6 +289,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           .read(attendanceRepositoryProvider)
           .saveDailyAttendance(date: _selectedDate, entries: inputs);
 
+      setState(() {
+        _statusByWorker.clear();
+        _siteByWorker.clear();
+        _savedSuccessfully = true;
+      });
       if (context.mounted) {
         showSuccessSnackBar(context, 'Yoklama kaydedildi.');
       }

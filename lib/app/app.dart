@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/providers.dart';
 import '../features/attendance/attendance_page.dart';
+import '../features/auth/auth_gate.dart';
 import '../features/expenses/expenses_page.dart';
 import '../features/payroll/payroll_page.dart';
 import '../features/sites/sites_page.dart';
@@ -20,12 +20,6 @@ class AriApp extends ConsumerStatefulWidget {
 
 class _AriAppState extends ConsumerState<AriApp> {
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() => ref.read(syncServiceProvider).flushPending());
-  }
-
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Ari Yapi Yonetim',
@@ -38,7 +32,9 @@ class _AriAppState extends ConsumerState<AriApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const AriSplashPage(child: RootShell()),
+      home: const AriSplashPage(
+        child: AuthGate(child: RootShell()),
+      ),
     );
   }
 }
