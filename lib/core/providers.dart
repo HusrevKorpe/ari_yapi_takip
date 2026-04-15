@@ -153,7 +153,7 @@ final siteReportRepositoryProvider = Provider<SiteReportRepository>((ref) {
 });
 
 final siteReportProvider =
-    FutureProvider.family<SiteReportData, String>((ref, siteId) {
+    FutureProvider.autoDispose.family<SiteReportData, String>((ref, siteId) {
   return ref.watch(siteReportRepositoryProvider).getReport(siteId);
 });
 
