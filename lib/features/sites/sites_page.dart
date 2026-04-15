@@ -145,6 +145,7 @@ class SitesPage extends ConsumerWidget {
   Future<void> _showAddDialog(BuildContext context, WidgetRef ref) async {
     final nameController = TextEditingController();
     final codeController = TextEditingController();
+    final bonusController = TextEditingController();
 
     await showModalBottomSheet<void>(
       context: context,
@@ -263,6 +264,20 @@ class SitesPage extends ConsumerWidget {
                           focusedColor: _accent,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: bonusController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: _sheetInputDecoration(
+                          label: 'Gunluk Prim (TL)',
+                          hint: 'Merkez icin bos birakin',
+                          fillColor: const Color(0xFFFBFEFC),
+                          borderColor: const Color(0xFFD3E3DC),
+                          focusedColor: _accent,
+                        ),
+                      ),
                       const SizedBox(height: 18),
                       Row(
                         children: [
@@ -312,13 +327,18 @@ class SitesPage extends ConsumerWidget {
                                           )
                                           .toUpperCase()
                                     : codeController.text.trim().toUpperCase();
+                                final bonus =
+                                    double.tryParse(
+                                      bonusController.text.trim(),
+                                    ) ??
+                                    0;
 
                                 await ref
                                     .read(siteRepositoryProvider)
                                     .createSite(
                                       name: name,
                                       code: code,
-                                      dailyBonus: 0,
+                                      dailyBonus: bonus,
                                     );
 
                                 if (context.mounted) {

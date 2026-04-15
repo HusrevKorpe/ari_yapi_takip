@@ -25,9 +25,7 @@ abstract class RemoteDataSource {
 }
 
 class FirebaseRemoteDataSource implements RemoteDataSource {
-  FirebaseRemoteDataSource() : _enabled = Firebase.apps.isNotEmpty;
-
-  final bool _enabled;
+  FirebaseRemoteDataSource();
 
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
@@ -45,11 +43,13 @@ class FirebaseRemoteDataSource implements RemoteDataSource {
         .doc(entityId);
   }
 
+  // Dinamik okunur: provider constructor Firebase init'inden önce çalışırsa
+  // sabit `_enabled = false` kalıcı olarak senkronizasyonu susturur.
   @override
-  bool get isAvailable => _enabled;
+  bool get isAvailable => Firebase.apps.isNotEmpty;
 
   void _ensureAvailable() {
-    if (!_enabled) {
+    if (!isAvailable) {
       throw FirebaseException(
         plugin: 'firebase_core',
         code: 'not-initialized',

@@ -121,9 +121,26 @@ class PullSyncService {
     return remoteVersion <= localVersion && remoteDeviceId == _deviceId;
   }
 
+  /// Local'de bu entity için henüz push edilmemiş değişiklik var mı?
+  /// Varsa pull yazımını atla — aksi halde pending local edit remote
+  /// tarafından overwrite edilir (concurrent edit data loss).
+  Future<bool> _hasPendingPush(String entityType, String entityId) async {
+    final q = _db.select(_db.syncQueueItems)
+      ..where(
+        (q) =>
+            q.entityType.equals(entityType) &
+            q.entityId.equals(entityId) &
+            q.status.equals('pending'),
+      )
+      ..limit(1);
+    final row = await q.getSingleOrNull();
+    return row != null;
+  }
+
   Future<void> _upsertWorker(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('worker', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -179,6 +196,7 @@ class PullSyncService {
   Future<void> _upsertSite(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('site', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -225,6 +243,7 @@ class PullSyncService {
   Future<void> _upsertAttendance(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('attendance', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -268,6 +287,7 @@ class PullSyncService {
   Future<void> _upsertExpense(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('expense', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -313,6 +333,7 @@ class PullSyncService {
   Future<void> _upsertIncome(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('income', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -358,6 +379,7 @@ class PullSyncService {
   Future<void> _upsertAdvanceDebt(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('advance_debt', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -402,6 +424,7 @@ class PullSyncService {
   Future<void> _upsertPayrollPayment(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('payroll_payment', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -445,6 +468,7 @@ class PullSyncService {
   Future<void> _upsertPayrollSnapshot(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
+    if (await _hasPendingPush('payroll_snapshot', id)) return;
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,

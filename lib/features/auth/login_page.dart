@@ -36,25 +36,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final credential = await ref
+      await ref
           .read(authRepositoryProvider)
           .signInWithEmailAndPassword(email: email, password: password);
-
-      final uid = credential.user?.uid;
-      if (uid == null) throw Exception('Kullanici ID alinamadi');
-
-      await ref
-          .read(organizationServiceProvider)
-          .ensureOrganization(uid: uid, email: email);
-
-      // organizationId prefs'e yazıldı — syncContextProvider'ı yeniden
-      // hesaplat ki AuthGate geçerli ctx ile sync başlatabilsin.
-      ref.invalidate(syncContextProvider);
-
-      // AuthGate otomatik olarak ana sayfaya yonlendirir
+      // ensureOrganization + sync bootstrap AuthGate tarafından yapılır.
+      // Böylece LoginPage widget'ı dispose olduktan sonra çalışan hatalı
+      // kodlar yüzünden tutarsız state kalmıyor.
     } on Exception catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() => _isLoading = false);
         final message = _friendlyError(e.toString());
         showErrorSnackBar(context, message);
       }

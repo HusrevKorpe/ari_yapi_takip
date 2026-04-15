@@ -29,6 +29,14 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
+/// Drift migration lazy olduğundan provider oluşurken hata yakalanmaz;
+/// uygulama açılışında bu provider migration'u zorla tetikleyip hatayı
+/// UI'a taşır. AuthGate/AriApp bu future'ı izleyip fail durumunda kullanıcıya
+/// görünür bir ekran sunar.
+final databaseWarmUpProvider = FutureProvider<void>((ref) {
+  return ref.watch(databaseProvider).warmUp();
+});
+
 final connectivityProvider = Provider<Connectivity>((ref) => Connectivity());
 
 // ---------------------------------------------------------------------------
@@ -153,7 +161,7 @@ final siteReportRepositoryProvider = Provider<SiteReportRepository>((ref) {
 });
 
 final siteReportProvider =
-    FutureProvider.family<SiteReportData, String>((ref, siteId) {
+    FutureProvider.autoDispose.family<SiteReportData, String>((ref, siteId) {
   return ref.watch(siteReportRepositoryProvider).getReport(siteId);
 });
 
@@ -186,6 +194,12 @@ final syncQueueRepositoryProvider = Provider<SyncQueueRepository>((ref) {
   return SyncQueueRepository(ref.watch(databaseProvider));
 });
 
+/// Kalıcı senkronizasyon hatasına düşen öğe sayısı — RootShell bu değeri
+/// izleyip kullanıcıya uyarı banner'ı gösterir.
+final failedPermanentCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(syncQueueRepositoryProvider).failedPermanentCount();
+});
+
 final remoteDataSourceProvider = Provider<RemoteDataSource>((ref) {
   return FirebaseRemoteDataSource();
 });
@@ -195,6 +209,9 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     queueRepository: ref.watch(syncQueueRepositoryProvider),
     remoteDataSource: ref.watch(remoteDataSourceProvider),
     connectivity: ref.watch(connectivityProvider),
+    // Resolver: her flush'ta canlı okunur — login sonrası orgId güncellendiğinde
+    // SyncService yeniden oluşturulmaksızın doğru değer kullanılır.
+    organizationIdResolver: () => ref.read(syncContextProvider).organizationId,
   );
 });
 

@@ -14,13 +14,17 @@ class OrganizationService {
 
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
-  /// Kullanicinin organizasyonunu kontrol eder ya da ilk giriste olusturur.
+  /// Kullanicinin organizasyonunu bulur. Otomatik org yaratmaz.
   ///
   /// Coklu admin senaryosu:
-  ///   - Admin 1 giriş yapar → yeni org olusturulur (orgId = uid)
-  ///   - Admin 2 ve 3 icin `users/{uid}` dokumani:
-  ///       `organizationId` alanina ilk adminin uid'si yazilir
-  ///   - Sonraki girişlerde mevcut orgId bulunur ve kullanılır
+  ///   - Her admin icin Firebase Console'dan `users/{uid}` dokumani elle
+  ///     hazirlanir: `organizationId: <admin1_uid>` (admin 1 dahil).
+  ///   - Admin 1 icin `organizations/{admin1_uid}` dokumani da once Console'dan
+  ///     ya da bu metod tarafindan yaratilir (ilk admin kuralı auto-create'e izin
+  ///     veren `allow create` kuralı ile uyumlu).
+  ///   - users/{uid} bulunamazsa organizasyon-forking bug'ini engellemek icin
+  ///     hata firlatir (önceki sürümde admin 2/3 sessizce kendi orgunu yaratıp
+  ///     izole kaliyordu — "Firestore'da hiç veri yok" semptomu).
   Future<String> ensureOrganization({
     required String uid,
     required String? email,
@@ -32,29 +36,41 @@ class OrganizationService {
     }
 
     final userDoc = await _firestore.collection('users').doc(uid).get();
+    String? orgIdRaw;
+    if (userDoc.exists) {
+      final data = userDoc.data();
+      final value = data?['organizationId'];
+      if (value is String) orgIdRaw = value;
+    }
 
-    String orgId;
-    if (userDoc.exists && userDoc.data()?['organizationId'] != null) {
-      // Mevcut kullanici - organizasyon zaten tanimli
-      orgId = userDoc.data()!['organizationId'] as String;
-    } else {
-      // Ilk giris - yeni organizasyon olustur
-      orgId = uid;
+    if (orgIdRaw == null || orgIdRaw.isEmpty) {
+      throw StateError(
+        'Bu hesap icin kullanici kaydi tamamlanmamis. '
+        'Firebase Console > Firestore > users/$uid dokumanina '
+        '"organizationId" alani elle eklenmelidir. Admin 1 icin '
+        'organizationId = $uid, Admin 2/3 icin = admin 1 uid\'i.',
+      );
+    }
 
-      await _firestore.collection('organizations').doc(orgId).set({
-        'id': orgId,
-        'ownerUid': uid,
-        'email': email,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+    final orgId = orgIdRaw;
 
-      await _firestore.collection('users').doc(uid).set({
-        'uid': uid,
-        'email': email,
-        'organizationId': orgId,
-        'role': 'admin',
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+    // Admin 1 self-bootstrap: users/{uid}.organizationId == uid ise ve
+    // organizations/{uid} henuz yoksa bu ilk admin kaydidir, kuralın izin
+    // verdigi tek senaryo. Diger tüm kullanicilar icin org zaten yaratılmış
+    // olmalı.
+    if (orgId == uid) {
+      final orgDoc = await _firestore
+          .collection('organizations')
+          .doc(orgId)
+          .get();
+      if (!orgDoc.exists) {
+        await _firestore.collection('organizations').doc(orgId).set({
+          'id': orgId,
+          'ownerUid': uid,
+          'email': email,
+          'createdAt': DateTime.now().toIso8601String(),
+        });
+      }
     }
 
     final previousOrgId = _prefs.organizationId;

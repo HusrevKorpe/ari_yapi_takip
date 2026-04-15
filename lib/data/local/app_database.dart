@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as dev;
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -170,6 +171,10 @@ class SyncQueueItems extends Table {
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get processedAt => dateTime().nullable()();
+  // Exponential backoff: bir önceki fail sonrası tekrar denemeye uygun olduğu
+  // en erken zaman. null → hemen denenebilir.
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+  TextColumn get lastError => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -209,33 +214,71 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onUpgrade: (m, from, to) async {
-        if (from < 2) {
+        // Her migration adımını kendi try/catch'iyle sarıyoruz ki beklenmeyen
+        // bir hata olursa hangi adımın (ve hangi from→to geçişinin) patladığı
+        // açıkça log'a düşsün ve hata warmUp() üzerinden UI'a taşınsın.
+        await _runStep('v2: sites.daily_bonus', from < 2, () async {
           await _safeAddColumn(m, sites, sites.dailyBonus);
-        }
-        if (from < 3) {
+        });
+        await _runStep('v3: payroll_payments table', from < 3, () async {
           try {
             await m.createTable(payrollPayments);
-          } catch (_) {}
-        }
-        if (from < 4) {
+          } catch (e) {
+            if (!e.toString().contains('already exists')) rethrow;
+          }
+        });
+        await _runStep('v4: workers.pay_frequency', from < 4, () async {
           await _safeAddColumn(m, workers, workers.payFrequency);
-        }
-        // v5+v6: Sync meta columns. Uses _safeAddColumn so it's safe to
-        // re-run even if a previous partial migration already added some.
-        if (from < 6) {
+        });
+        await _runStep('v6: sync meta columns', from < 6, () async {
           await _ensureSyncMetaColumns(m);
-        }
-        if (from < 7) {
-          await m.createTable(incomes);
-        }
+        });
+        await _runStep('v7: incomes table', from < 7, () async {
+          try {
+            await m.createTable(incomes);
+          } catch (e) {
+            if (!e.toString().contains('already exists')) rethrow;
+          }
+        });
+        await _runStep('v8: sync_queue_items backoff columns', from < 8,
+            () async {
+          await _safeAddColumn(m, syncQueueItems, syncQueueItems.nextAttemptAt);
+          await _safeAddColumn(m, syncQueueItems, syncQueueItems.lastError);
+        });
       },
     );
+  }
+
+  Future<void> _runStep(
+    String label,
+    bool shouldRun,
+    Future<void> Function() body,
+  ) async {
+    if (!shouldRun) return;
+    try {
+      await body();
+    } catch (e, st) {
+      dev.log(
+        'Migration adımı başarısız: $label — $e',
+        name: 'AppDatabase',
+        error: e,
+        stackTrace: st,
+      );
+      throw Exception('Migration başarısız ($label): $e');
+    }
+  }
+
+  /// Migration Drift'te lazy çalışır (ilk sorguda tetiklenir). Provider
+  /// oluşurken hata yakalanamadığı için uygulama açılırken bu metod çağrılır;
+  /// hata UI'a taşınıp kullanıcıya gösterilir.
+  Future<void> warmUp() async {
+    await customSelect('SELECT 1').get();
   }
 
   /// Adds all sync meta columns to all entity tables.
@@ -366,22 +409,64 @@ class AppDatabase extends _$AppDatabase {
     required Map<String, dynamic> payload,
     String organizationId = '',
   }) async {
-    // Boş orgId ile kuyruğa item eklenmez — asla senkronize edilemezler.
-    if (organizationId.isEmpty) return;
+    // Boş orgId ile gelirse kuyruğa yazmıyoruz (syncService nasılsa reddeder),
+    // ama sessizce düşürmek "veriler Firestore'a gitmiyor" şikayetinin en sık
+    // sebebi oldu. Gözle görünür log + audit bırak ki teşhis mümkün olsun.
+    if (organizationId.isEmpty) {
+      dev.log(
+        'upsertQueueItem organizationId boş — atlandı '
+        '($entityType/$entityId action=$action). Auth/bootstrap tamamlanmadan '
+        'yazma denendi.',
+        name: 'AppDatabase',
+      );
+      await addAudit(
+        id: id,
+        entityType: entityType,
+        entityId: entityId,
+        message: 'Sync atlandı: organizationId boş ($action)',
+      );
+      return;
+    }
 
-    // Offline create + delete senaryosu: entity Firestore'a hiç gönderilmeden
-    // silinirse ghost document oluşmaması için pending upsert'i iptal et,
-    // delete'i de ekleme.
     if (action == 'delete') {
-      final cancelled = await (delete(syncQueueItems)
+      // Offline create + delete: entity Firestore'a hiç gönderilmeden silinirse
+      // ghost document oluşmaması için pending upsert'i iptal et, delete'i de
+      // ekleme.
+      final cancelledUpserts = await (delete(syncQueueItems)
             ..where(
               (q) =>
+                  q.entityType.equals(entityType) &
                   q.entityId.equals(entityId) &
                   q.action.equals('upsert') &
                   q.status.equals('pending'),
             ))
           .go();
-      if (cancelled > 0) return; // upsert iptal edildi, delete'e gerek yok
+      if (cancelledUpserts > 0) return; // upsert iptal edildi, delete'e gerek yok
+
+      // Aynı entity için eski pending delete'leri de temizle — bootstrap
+      // re-run'larında aynı silmenin tekrar tekrar kuyruğa eklenmesini önler.
+      await (delete(syncQueueItems)
+            ..where(
+              (q) =>
+                  q.entityType.equals(entityType) &
+                  q.entityId.equals(entityId) &
+                  q.action.equals('delete') &
+                  q.status.equals('pending'),
+            ))
+          .go();
+    } else {
+      // Aynı entity için eski pending upsert'leri sil — aksi halde backoff'da
+      // bekleyen bayat payload, yeni kaydın üzerine Firestore'a yazılıp en
+      // son değişiklikleri ezer (data loss on rapid re-saves).
+      await (delete(syncQueueItems)
+            ..where(
+              (q) =>
+                  q.entityType.equals(entityType) &
+                  q.entityId.equals(entityId) &
+                  q.action.equals(action) &
+                  q.status.equals('pending'),
+            ))
+          .go();
     }
 
     await into(syncQueueItems).insertOnConflictUpdate(

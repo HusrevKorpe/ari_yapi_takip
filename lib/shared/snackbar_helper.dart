@@ -41,4 +41,3 @@ void showErrorSnackBar(BuildContext context, String message) {
       ),
     );
 }
-
