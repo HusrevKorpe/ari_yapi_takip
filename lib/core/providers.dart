@@ -114,6 +114,14 @@ final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   );
 });
 
+final incomeRepositoryProvider = Provider<IncomeRepository>((ref) {
+  return IncomeRepository(
+    ref.watch(databaseProvider),
+    ref.watch(uuidProvider),
+    ref.watch(syncContextProvider),
+  );
+});
+
 final advanceDebtRepositoryProvider = Provider<AdvanceDebtRepository>((ref) {
   return AdvanceDebtRepository(
     ref.watch(databaseProvider),
@@ -138,6 +146,15 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
     ref.watch(uuidProvider),
     ref.watch(syncContextProvider),
   );
+});
+
+final siteReportRepositoryProvider = Provider<SiteReportRepository>((ref) {
+  return SiteReportRepository(ref.watch(databaseProvider));
+});
+
+final siteReportProvider =
+    FutureProvider.family<SiteReportData, String>((ref, siteId) {
+  return ref.watch(siteReportRepositoryProvider).getReport(siteId);
 });
 
 // ---------------------------------------------------------------------------

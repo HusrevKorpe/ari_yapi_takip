@@ -501,8 +501,10 @@ class WorkerDetailSheet extends ConsumerWidget {
 
                             if (dialogContext.mounted) {
                               Navigator.pop(dialogContext);
+                            }
+                            if (context.mounted) {
                               showSuccessSnackBar(
-                                dialogContext,
+                                context,
                                 type == 'advance'
                                     ? 'Avans kaydedildi'
                                     : 'Borc kaydedildi',

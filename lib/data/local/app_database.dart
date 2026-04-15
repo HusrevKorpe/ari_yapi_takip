@@ -96,6 +96,20 @@ class Expenses extends Table with SyncMeta {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class Incomes extends Table with SyncMeta {
+  TextColumn get id => text()();
+  DateTimeColumn get incomeDate => dateTime()();
+  RealColumn get amount => real()();
+  TextColumn get category => text()();
+  TextColumn get siteId => text().nullable()();
+  TextColumn get description => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class AdvanceDebts extends Table with SyncMeta {
   TextColumn get id => text()();
   TextColumn get workerId => text()();
@@ -183,6 +197,7 @@ class AuditLogs extends Table {
     Sites,
     AttendanceEntries,
     Expenses,
+    Incomes,
     AdvanceDebts,
     PayrollPayments,
     PayrollSnapshots,
@@ -194,7 +209,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -215,6 +230,9 @@ class AppDatabase extends _$AppDatabase {
         // re-run even if a previous partial migration already added some.
         if (from < 6) {
           await _ensureSyncMetaColumns(m);
+        }
+        if (from < 7) {
+          await m.createTable(incomes);
         }
       },
     );
@@ -408,6 +426,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(payrollSnapshots).go();
       await delete(payrollPayments).go();
       await delete(advanceDebts).go();
+      await delete(incomes).go();
       await delete(expenses).go();
       await delete(attendanceEntries).go();
       await delete(sites).go();

@@ -5,6 +5,7 @@ const kEntityCollections = <String, String>{
   'site': 'santiyeler',
   'attendance': 'yoklama',
   'expense': 'giderler',
+  'income': 'gelirler',
   'advance_debt': 'avans_borclar',
   'payroll_payment': 'maas_odemeleri',
   'payroll_snapshot': 'maas_ozetleri',

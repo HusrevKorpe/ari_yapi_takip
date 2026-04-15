@@ -98,6 +98,9 @@ class PullSyncService {
       case 'expense':
         await _upsertExpense(data);
         return;
+      case 'income':
+        await _upsertIncome(data);
+        return;
       case 'advance_debt':
         await _upsertAdvanceDebt(data);
         return;
@@ -283,6 +286,51 @@ class PullSyncService {
           ExpensesCompanion.insert(
             id: id,
             expenseDate: _date(_value(data, 'giderTarihi', 'expenseDate')),
+            amount: _double(_value(data, 'tutar', 'amount')),
+            category: _str(_value(data, 'kategori', 'category')),
+            siteId: Value(_nullableStr(_value(data, 'santiyeId', 'siteId'))),
+            description: Value(
+              _nullableStr(_value(data, 'aciklama', 'description')),
+            ),
+            createdAt: Value(
+              _date(_value(data, 'olusturulmaTarihi', 'createdAt')),
+            ),
+            updatedAt: Value(
+              _date(_value(data, 'guncellenmeTarihi', 'updatedAt')),
+            ),
+            deletedAt: Value(
+              _nullableDate(_value(data, 'silinmeTarihi', 'deletedAt')),
+            ),
+            lastModifiedBy: Value(
+              _str(_value(data, 'sonDegistiren', 'lastModifiedBy')),
+            ),
+            deviceId: Value(_str(_value(data, 'cihazId', 'deviceId'))),
+            syncVersion: Value(remoteVersion),
+          ),
+        );
+  }
+
+  Future<void> _upsertIncome(Map<String, dynamic> data) async {
+    final id = _str(data['id']);
+    if (id.isEmpty) return;
+    final remoteVersion = _int(
+      _value(data, 'senkronSurumu', 'syncVersion'),
+      fallback: 1,
+    );
+    final existing = await (_db.select(
+      _db.incomes,
+    )..where((i) => i.id.equals(id))).getSingleOrNull();
+    if (existing != null) {
+      if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
+      if (remoteVersion < existing.syncVersion) return;
+    }
+
+    await _db
+        .into(_db.incomes)
+        .insertOnConflictUpdate(
+          IncomesCompanion.insert(
+            id: id,
+            incomeDate: _date(_value(data, 'gelirTarihi', 'incomeDate')),
             amount: _double(_value(data, 'tutar', 'amount')),
             category: _str(_value(data, 'kategori', 'category')),
             siteId: Value(_nullableStr(_value(data, 'santiyeId', 'siteId'))),

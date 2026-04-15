@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/attendance/attendance_page.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/expenses/expenses_page.dart';
+import '../features/incomes/incomes_page.dart';
 import '../features/payroll/payroll_page.dart';
 import '../features/sites/sites_page.dart';
 import '../features/workers/workers_page.dart';
@@ -52,6 +53,7 @@ class _RootShellState extends State<RootShell> {
     (icon: Icons.people_alt_rounded, label: 'Calisanlar'),
     (icon: Icons.fact_check_outlined, label: 'Yoklama'),
     (icon: Icons.receipt_long_rounded, label: 'Gider'),
+    (icon: Icons.trending_up_rounded, label: 'Gelir'),
     (icon: Icons.payments_rounded, label: 'Maas'),
     (icon: Icons.location_city_rounded, label: 'Santiyeler'),
   ];
@@ -60,6 +62,7 @@ class _RootShellState extends State<RootShell> {
     WorkersPage(),
     AttendancePage(),
     ExpensesPage(),
+    IncomesPage(),
     PayrollPage(),
     SitesPage(),
   ];

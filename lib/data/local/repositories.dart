@@ -481,6 +481,26 @@ class AttendanceRepository {
       ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
     return query.watch();
   }
+
+  /// Bir çalışanın [since] tarihinden itibaren kayıtlı en erken yoklama
+  /// tarihini döndürür. Geçmişe dönük girilen yoklamaların periodStart
+  /// hesabına dahil edilmesini sağlar.
+  Future<DateTime?> earliestDateForWorker(
+    String workerId, {
+    required DateTime since,
+  }) async {
+    final query = _db.select(_db.attendanceEntries)
+      ..where(
+        (a) =>
+            a.workerId.equals(workerId) &
+            a.workDate.isBiggerOrEqualValue(since) &
+            a.deletedAt.isNull(),
+      )
+      ..orderBy([(a) => OrderingTerm(expression: a.workDate)])
+      ..limit(1);
+    final entry = await query.getSingleOrNull();
+    return entry?.workDate;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -593,6 +613,122 @@ class ExpenseRepository {
       ..addColumns([totalExp])
       ..where(_db.expenses.expenseDate.isBetweenValues(start, end) &
           _db.expenses.deletedAt.isNull());
+
+    final row = await query.getSingle();
+    return row.read(totalExp) ?? 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// IncomeRepository
+// ---------------------------------------------------------------------------
+
+class IncomeRepository {
+  IncomeRepository(this._db, this._uuid, this._ctx);
+
+  final AppDatabase _db;
+  final Uuid _uuid;
+  final SyncContext _ctx;
+
+  Stream<List<Income>> watchMonth(DateTime month) {
+    final start = monthStart(month);
+    final end = monthEnd(month);
+
+    final query = _db.select(_db.incomes)
+      ..where(
+        (i) =>
+            i.incomeDate.isBetweenValues(start, end) & i.deletedAt.isNull(),
+      )
+      ..orderBy([(i) => OrderingTerm.desc(i.incomeDate)]);
+    return query.watch();
+  }
+
+  Future<void> addIncome({
+    required DateTime date,
+    required double amount,
+    required String category,
+    String? siteId,
+    String? description,
+  }) async {
+    final id = _uuid.v4();
+    final normalized = normalizeDay(date);
+
+    await _db.into(_db.incomes).insert(
+      IncomesCompanion.insert(
+        id: id,
+        incomeDate: normalized,
+        amount: amount,
+        category: category,
+        siteId: Value(siteId),
+        description: Value(description),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: const Value(1),
+      ),
+    );
+
+    final saved = await (_db.select(_db.incomes)
+          ..where((i) => i.id.equals(id)))
+        .getSingle();
+
+    await _db.upsertQueueItem(
+      id: _uuid.v4(),
+      entityType: 'income',
+      entityId: id,
+      action: 'upsert',
+      payload: saved.toSyncMap(),
+      organizationId: _ctx.organizationId,
+    );
+  }
+
+  Future<void> deleteIncome({required String incomeId}) async {
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.incomes)
+          ..where((i) => i.id.equals(incomeId)))
+        .getSingleOrNull();
+    final nextVersion = (existing?.syncVersion ?? 0) + 1;
+
+    await (_db.update(_db.incomes)..where((i) => i.id.equals(incomeId)))
+        .write(IncomesCompanion(
+      deletedAt: Value(now),
+      updatedAt: Value(now),
+      lastModifiedBy: Value(_ctx.userId),
+      deviceId: Value(_ctx.deviceId),
+      syncVersion: Value(nextVersion),
+    ));
+
+    await _db.upsertQueueItem(
+      id: _uuid.v4(),
+      entityType: 'income',
+      entityId: incomeId,
+      action: 'delete',
+      payload: {
+        'id': incomeId,
+        'deletedAt': now.toIso8601String(),
+        'lastModifiedBy': _ctx.userId,
+        'deviceId': _ctx.deviceId,
+        'syncVersion': nextVersion,
+      },
+      organizationId: _ctx.organizationId,
+    );
+
+    await _db.addAudit(
+      id: _uuid.v4(),
+      entityType: 'income',
+      entityId: incomeId,
+      message: 'Gelir kaydi silindi',
+    );
+  }
+
+  Future<double> totalForMonth(DateTime month) async {
+    final start = monthStart(month);
+    final end = monthEnd(month);
+
+    final totalExp = _db.incomes.amount.sum();
+    final query = _db.selectOnly(_db.incomes)
+      ..addColumns([totalExp])
+      ..where(_db.incomes.incomeDate.isBetweenValues(start, end) &
+          _db.incomes.deletedAt.isNull());
 
     final row = await query.getSingle();
     return row.read(totalExp) ?? 0;
@@ -1081,5 +1217,155 @@ class SyncQueueRepository {
     } catch (_) {
       return {};
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SiteReportRepository — şantiye maliyet özeti
+// ---------------------------------------------------------------------------
+
+class SiteWorkerRow {
+  const SiteWorkerRow({
+    required this.workerId,
+    required this.workerName,
+    required this.fullDays,
+    required this.halfDays,
+    required this.dayEquivalent,
+    required this.dailyWage,
+    required this.siteBonus,
+    required this.totalWage,
+  });
+
+  final String workerId;
+  final String workerName;
+  final int fullDays;
+  final int halfDays;
+  final double dayEquivalent;
+  final double dailyWage;
+  final double siteBonus;
+  final double totalWage;
+}
+
+class SiteExpenseCategory {
+  const SiteExpenseCategory({
+    required this.category,
+    required this.total,
+  });
+
+  final String category;
+  final double total;
+}
+
+class SiteReportData {
+  const SiteReportData({
+    required this.site,
+    required this.firstWorkDate,
+    required this.lastWorkDate,
+    required this.workerRows,
+    required this.totalWages,
+    required this.expenseCategories,
+    required this.totalExpenses,
+    required this.grandTotal,
+  });
+
+  final Site site;
+  final DateTime? firstWorkDate;
+  final DateTime? lastWorkDate;
+  final List<SiteWorkerRow> workerRows;
+  final double totalWages;
+  final List<SiteExpenseCategory> expenseCategories;
+  final double totalExpenses;
+  final double grandTotal;
+}
+
+class SiteReportRepository {
+  SiteReportRepository(this._db);
+
+  final AppDatabase _db;
+
+  Future<SiteReportData> getReport(String siteId) async {
+    final site = await (_db.select(_db.sites)
+          ..where((s) => s.id.equals(siteId)))
+        .getSingle();
+
+    // Şantiyeye ait tüm yoklama kayıtları (tarih sıralı)
+    final entries = await (_db.select(_db.attendanceEntries)
+          ..where((a) => a.siteId.equals(siteId) & a.deletedAt.isNull())
+          ..orderBy([(a) => OrderingTerm(expression: a.workDate)]))
+        .get();
+
+    final firstWorkDate = entries.isEmpty ? null : entries.first.workDate;
+    final lastWorkDate = entries.isEmpty ? null : entries.last.workDate;
+
+    // İşçileri çek
+    final workerIds = entries.map((e) => e.workerId).toSet().toList();
+    final List<Worker> workers;
+    if (workerIds.isEmpty) {
+      workers = [];
+    } else {
+      workers = await (_db.select(_db.workers)
+            ..where((w) => w.id.isIn(workerIds)))
+          .get();
+    }
+    final workerById = {for (final w in workers) w.id: w};
+
+    // Her işçi için hesapla
+    final workerRows = <SiteWorkerRow>[];
+    for (final wId in workerIds) {
+      final worker = workerById[wId];
+      if (worker == null) continue;
+      final workerEntries = entries.where((e) => e.workerId == wId);
+      int fullDays = 0;
+      int halfDays = 0;
+      for (final e in workerEntries) {
+        final status = AttendanceStatusX.fromCode(e.status);
+        if (status == AttendanceStatus.worked) {
+          fullDays++;
+        } else if (status == AttendanceStatus.halfDay) {
+          halfDays++;
+        }
+      }
+      final dayEquivalent = fullDays + halfDays * 0.5;
+      workerRows.add(SiteWorkerRow(
+        workerId: wId,
+        workerName: worker.fullName,
+        fullDays: fullDays,
+        halfDays: halfDays,
+        dayEquivalent: dayEquivalent,
+        dailyWage: worker.dailyWage,
+        siteBonus: site.dailyBonus,
+        totalWage: dayEquivalent * (worker.dailyWage + site.dailyBonus),
+      ));
+    }
+    workerRows.sort((a, b) => a.workerName.compareTo(b.workerName));
+    final totalWages =
+        workerRows.fold<double>(0, (s, r) => s + r.totalWage);
+
+    // Giderler
+    final expenses = await (_db.select(_db.expenses)
+          ..where((e) => e.siteId.equals(siteId) & e.deletedAt.isNull()))
+        .get();
+    final categoryTotals = <String, double>{};
+    for (final e in expenses) {
+      categoryTotals[e.category] =
+          (categoryTotals[e.category] ?? 0) + e.amount;
+    }
+    final expenseCategories = categoryTotals.entries
+        .map((e) => SiteExpenseCategory(category: e.key, total: e.value))
+        .toList()
+      ..sort((a, b) => b.total.compareTo(a.total));
+    final totalExpenses =
+        expenses.fold<double>(0, (s, e) => s + e.amount);
+
+    return SiteReportData(
+      site: site,
+      firstWorkDate: firstWorkDate,
+      lastWorkDate: lastWorkDate,
+      workerRows: workerRows,
+      totalWages: totalWages,
+      expenseCategories: expenseCategories,
+      totalExpenses: totalExpenses,
+      grandTotal: totalWages + totalExpenses,
+    );
   }
 }

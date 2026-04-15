@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../data/local/app_database.dart';
 import '../../shared/snackbar_helper.dart';
+import 'site_report_page.dart';
 
 final sitesPageProvider = StreamProvider<List<Site>>((ref) {
   return ref.watch(siteRepositoryProvider).watchActiveSites();
@@ -118,6 +119,15 @@ class SitesPage extends ConsumerWidget {
                           onDelete: () => _confirmDelete(context, ref, site),
                           onEditBonus: () =>
                               _showEditBonusDialog(context, ref, site),
+                          onReport: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => SiteReportPage(
+                                siteId: site.id,
+                                siteName: site.name,
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -603,11 +613,13 @@ class _SiteTile extends StatelessWidget {
     required this.site,
     required this.onDelete,
     required this.onEditBonus,
+    required this.onReport,
   });
 
   final Site site;
   final VoidCallback onDelete;
   final VoidCallback onEditBonus;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -679,6 +691,15 @@ class _SiteTile extends StatelessWidget {
                         ],
                       ],
                     ),
+                  ),
+                  IconButton(
+                    onPressed: onReport,
+                    icon: const Icon(
+                      Icons.bar_chart_rounded,
+                      color: Color(0xFF1A6B5A),
+                    ),
+                    tooltip: 'Rapor Gör',
+                    iconSize: 22,
                   ),
                   IconButton(
                     onPressed: onEditBonus,

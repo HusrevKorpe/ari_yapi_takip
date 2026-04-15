@@ -3303,6 +3303,715 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   }
 }
 
+class $IncomesTable extends Incomes with TableInfo<$IncomesTable, Income> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $IncomesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedByMeta = const VerificationMeta(
+    'lastModifiedBy',
+  );
+  @override
+  late final GeneratedColumn<String> lastModifiedBy = GeneratedColumn<String>(
+    'last_modified_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncVersionMeta = const VerificationMeta(
+    'syncVersion',
+  );
+  @override
+  late final GeneratedColumn<int> syncVersion = GeneratedColumn<int>(
+    'sync_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _incomeDateMeta = const VerificationMeta(
+    'incomeDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> incomeDate = GeneratedColumn<DateTime>(
+    'income_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _siteIdMeta = const VerificationMeta('siteId');
+  @override
+  late final GeneratedColumn<String> siteId = GeneratedColumn<String>(
+    'site_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    incomeDate,
+    amount,
+    category,
+    siteId,
+    description,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'incomes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Income> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified_by')) {
+      context.handle(
+        _lastModifiedByMeta,
+        lastModifiedBy.isAcceptableOrUnknown(
+          data['last_modified_by']!,
+          _lastModifiedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_version')) {
+      context.handle(
+        _syncVersionMeta,
+        syncVersion.isAcceptableOrUnknown(
+          data['sync_version']!,
+          _syncVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('income_date')) {
+      context.handle(
+        _incomeDateMeta,
+        incomeDate.isAcceptableOrUnknown(data['income_date']!, _incomeDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_incomeDateMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('site_id')) {
+      context.handle(
+        _siteIdMeta,
+        siteId.isAcceptableOrUnknown(data['site_id']!, _siteIdMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Income map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Income(
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModifiedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_modified_by'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      syncVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_version'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      incomeDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}income_date'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      )!,
+      siteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}site_id'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $IncomesTable createAlias(String alias) {
+    return $IncomesTable(attachedDatabase, alias);
+  }
+}
+
+class Income extends DataClass implements Insertable<Income> {
+  final DateTime? deletedAt;
+  final String lastModifiedBy;
+  final String deviceId;
+  final int syncVersion;
+  final String id;
+  final DateTime incomeDate;
+  final double amount;
+  final String category;
+  final String? siteId;
+  final String? description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Income({
+    this.deletedAt,
+    required this.lastModifiedBy,
+    required this.deviceId,
+    required this.syncVersion,
+    required this.id,
+    required this.incomeDate,
+    required this.amount,
+    required this.category,
+    this.siteId,
+    this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['last_modified_by'] = Variable<String>(lastModifiedBy);
+    map['device_id'] = Variable<String>(deviceId);
+    map['sync_version'] = Variable<int>(syncVersion);
+    map['id'] = Variable<String>(id);
+    map['income_date'] = Variable<DateTime>(incomeDate);
+    map['amount'] = Variable<double>(amount);
+    map['category'] = Variable<String>(category);
+    if (!nullToAbsent || siteId != null) {
+      map['site_id'] = Variable<String>(siteId);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  IncomesCompanion toCompanion(bool nullToAbsent) {
+    return IncomesCompanion(
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModifiedBy: Value(lastModifiedBy),
+      deviceId: Value(deviceId),
+      syncVersion: Value(syncVersion),
+      id: Value(id),
+      incomeDate: Value(incomeDate),
+      amount: Value(amount),
+      category: Value(category),
+      siteId: siteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(siteId),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Income.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Income(
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      lastModifiedBy: serializer.fromJson<String>(json['lastModifiedBy']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncVersion: serializer.fromJson<int>(json['syncVersion']),
+      id: serializer.fromJson<String>(json['id']),
+      incomeDate: serializer.fromJson<DateTime>(json['incomeDate']),
+      amount: serializer.fromJson<double>(json['amount']),
+      category: serializer.fromJson<String>(json['category']),
+      siteId: serializer.fromJson<String?>(json['siteId']),
+      description: serializer.fromJson<String?>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'lastModifiedBy': serializer.toJson<String>(lastModifiedBy),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'syncVersion': serializer.toJson<int>(syncVersion),
+      'id': serializer.toJson<String>(id),
+      'incomeDate': serializer.toJson<DateTime>(incomeDate),
+      'amount': serializer.toJson<double>(amount),
+      'category': serializer.toJson<String>(category),
+      'siteId': serializer.toJson<String?>(siteId),
+      'description': serializer.toJson<String?>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Income copyWith({
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? lastModifiedBy,
+    String? deviceId,
+    int? syncVersion,
+    String? id,
+    DateTime? incomeDate,
+    double? amount,
+    String? category,
+    Value<String?> siteId = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Income(
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+    deviceId: deviceId ?? this.deviceId,
+    syncVersion: syncVersion ?? this.syncVersion,
+    id: id ?? this.id,
+    incomeDate: incomeDate ?? this.incomeDate,
+    amount: amount ?? this.amount,
+    category: category ?? this.category,
+    siteId: siteId.present ? siteId.value : this.siteId,
+    description: description.present ? description.value : this.description,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Income copyWithCompanion(IncomesCompanion data) {
+    return Income(
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModifiedBy: data.lastModifiedBy.present
+          ? data.lastModifiedBy.value
+          : this.lastModifiedBy,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncVersion: data.syncVersion.present
+          ? data.syncVersion.value
+          : this.syncVersion,
+      id: data.id.present ? data.id.value : this.id,
+      incomeDate: data.incomeDate.present
+          ? data.incomeDate.value
+          : this.incomeDate,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      category: data.category.present ? data.category.value : this.category,
+      siteId: data.siteId.present ? data.siteId.value : this.siteId,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Income(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('incomeDate: $incomeDate, ')
+          ..write('amount: $amount, ')
+          ..write('category: $category, ')
+          ..write('siteId: $siteId, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    incomeDate,
+    amount,
+    category,
+    siteId,
+    description,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Income &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModifiedBy == this.lastModifiedBy &&
+          other.deviceId == this.deviceId &&
+          other.syncVersion == this.syncVersion &&
+          other.id == this.id &&
+          other.incomeDate == this.incomeDate &&
+          other.amount == this.amount &&
+          other.category == this.category &&
+          other.siteId == this.siteId &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class IncomesCompanion extends UpdateCompanion<Income> {
+  final Value<DateTime?> deletedAt;
+  final Value<String> lastModifiedBy;
+  final Value<String> deviceId;
+  final Value<int> syncVersion;
+  final Value<String> id;
+  final Value<DateTime> incomeDate;
+  final Value<double> amount;
+  final Value<String> category;
+  final Value<String?> siteId;
+  final Value<String?> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const IncomesCompanion({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    this.id = const Value.absent(),
+    this.incomeDate = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.category = const Value.absent(),
+    this.siteId = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  IncomesCompanion.insert({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    required String id,
+    required DateTime incomeDate,
+    required double amount,
+    required String category,
+    this.siteId = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       incomeDate = Value(incomeDate),
+       amount = Value(amount),
+       category = Value(category);
+  static Insertable<Income> custom({
+    Expression<DateTime>? deletedAt,
+    Expression<String>? lastModifiedBy,
+    Expression<String>? deviceId,
+    Expression<int>? syncVersion,
+    Expression<String>? id,
+    Expression<DateTime>? incomeDate,
+    Expression<double>? amount,
+    Expression<String>? category,
+    Expression<String>? siteId,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModifiedBy != null) 'last_modified_by': lastModifiedBy,
+      if (deviceId != null) 'device_id': deviceId,
+      if (syncVersion != null) 'sync_version': syncVersion,
+      if (id != null) 'id': id,
+      if (incomeDate != null) 'income_date': incomeDate,
+      if (amount != null) 'amount': amount,
+      if (category != null) 'category': category,
+      if (siteId != null) 'site_id': siteId,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  IncomesCompanion copyWith({
+    Value<DateTime?>? deletedAt,
+    Value<String>? lastModifiedBy,
+    Value<String>? deviceId,
+    Value<int>? syncVersion,
+    Value<String>? id,
+    Value<DateTime>? incomeDate,
+    Value<double>? amount,
+    Value<String>? category,
+    Value<String?>? siteId,
+    Value<String?>? description,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return IncomesCompanion(
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+      deviceId: deviceId ?? this.deviceId,
+      syncVersion: syncVersion ?? this.syncVersion,
+      id: id ?? this.id,
+      incomeDate: incomeDate ?? this.incomeDate,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      siteId: siteId ?? this.siteId,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (lastModifiedBy.present) {
+      map['last_modified_by'] = Variable<String>(lastModifiedBy.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncVersion.present) {
+      map['sync_version'] = Variable<int>(syncVersion.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (incomeDate.present) {
+      map['income_date'] = Variable<DateTime>(incomeDate.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (siteId.present) {
+      map['site_id'] = Variable<String>(siteId.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('IncomesCompanion(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('incomeDate: $incomeDate, ')
+          ..write('amount: $amount, ')
+          ..write('category: $category, ')
+          ..write('siteId: $siteId, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AdvanceDebtsTable extends AdvanceDebts
     with TableInfo<$AdvanceDebtsTable, AdvanceDebt> {
   @override
@@ -6503,6 +7212,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AttendanceEntriesTable attendanceEntries =
       $AttendanceEntriesTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
+  late final $IncomesTable incomes = $IncomesTable(this);
   late final $AdvanceDebtsTable advanceDebts = $AdvanceDebtsTable(this);
   late final $PayrollPaymentsTable payrollPayments = $PayrollPaymentsTable(
     this,
@@ -6522,6 +7232,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     sites,
     attendanceEntries,
     expenses,
+    incomes,
     advanceDebts,
     payrollPayments,
     payrollSnapshots,
@@ -8120,6 +8831,341 @@ typedef $$ExpensesTableProcessedTableManager =
       Expense,
       PrefetchHooks Function()
     >;
+typedef $$IncomesTableCreateCompanionBuilder =
+    IncomesCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      required String id,
+      required DateTime incomeDate,
+      required double amount,
+      required String category,
+      Value<String?> siteId,
+      Value<String?> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$IncomesTableUpdateCompanionBuilder =
+    IncomesCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      Value<String> id,
+      Value<DateTime> incomeDate,
+      Value<double> amount,
+      Value<String> category,
+      Value<String?> siteId,
+      Value<String?> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$IncomesTableFilterComposer
+    extends Composer<_$AppDatabase, $IncomesTable> {
+  $$IncomesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get incomeDate => $composableBuilder(
+    column: $table.incomeDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$IncomesTableOrderingComposer
+    extends Composer<_$AppDatabase, $IncomesTable> {
+  $$IncomesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get incomeDate => $composableBuilder(
+    column: $table.incomeDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$IncomesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $IncomesTable> {
+  $$IncomesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get incomeDate => $composableBuilder(
+    column: $table.incomeDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get siteId =>
+      $composableBuilder(column: $table.siteId, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$IncomesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $IncomesTable,
+          Income,
+          $$IncomesTableFilterComposer,
+          $$IncomesTableOrderingComposer,
+          $$IncomesTableAnnotationComposer,
+          $$IncomesTableCreateCompanionBuilder,
+          $$IncomesTableUpdateCompanionBuilder,
+          (Income, BaseReferences<_$AppDatabase, $IncomesTable, Income>),
+          Income,
+          PrefetchHooks Function()
+        > {
+  $$IncomesTableTableManager(_$AppDatabase db, $IncomesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$IncomesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$IncomesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$IncomesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<DateTime> incomeDate = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> category = const Value.absent(),
+                Value<String?> siteId = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => IncomesCompanion(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                incomeDate: incomeDate,
+                amount: amount,
+                category: category,
+                siteId: siteId,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                required String id,
+                required DateTime incomeDate,
+                required double amount,
+                required String category,
+                Value<String?> siteId = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => IncomesCompanion.insert(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                incomeDate: incomeDate,
+                amount: amount,
+                category: category,
+                siteId: siteId,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$IncomesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $IncomesTable,
+      Income,
+      $$IncomesTableFilterComposer,
+      $$IncomesTableOrderingComposer,
+      $$IncomesTableAnnotationComposer,
+      $$IncomesTableCreateCompanionBuilder,
+      $$IncomesTableUpdateCompanionBuilder,
+      (Income, BaseReferences<_$AppDatabase, $IncomesTable, Income>),
+      Income,
+      PrefetchHooks Function()
+    >;
 typedef $$AdvanceDebtsTableCreateCompanionBuilder =
     AdvanceDebtsCompanion Function({
       Value<DateTime?> deletedAt,
@@ -9704,6 +10750,8 @@ class $AppDatabaseManager {
       $$AttendanceEntriesTableTableManager(_db, _db.attendanceEntries);
   $$ExpensesTableTableManager get expenses =>
       $$ExpensesTableTableManager(_db, _db.expenses);
+  $$IncomesTableTableManager get incomes =>
+      $$IncomesTableTableManager(_db, _db.incomes);
   $$AdvanceDebtsTableTableManager get advanceDebts =>
       $$AdvanceDebtsTableTableManager(_db, _db.advanceDebts);
   $$PayrollPaymentsTableTableManager get payrollPayments =>

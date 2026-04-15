@@ -221,13 +221,35 @@ class _WorkerPayrollSheetState extends ConsumerState<_WorkerPayrollSheet> {
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final periodStart = lastPaidEnd != null
-        ? DateTime(lastPaidEnd.year, lastPaidEnd.month, lastPaidEnd.day + 1)
-        : DateTime(
-            widget.worker.createdAt.year,
-            widget.worker.createdAt.month,
-            widget.worker.createdAt.day,
+
+    final DateTime periodStart;
+    if (lastPaidEnd != null) {
+      // Önceki ödeme varsa bir sonraki günden başla.
+      periodStart = DateTime(
+        lastPaidEnd.year,
+        lastPaidEnd.month,
+        lastPaidEnd.day + 1,
+      );
+    } else {
+      // Önceki ödeme yok: createdAt ile en erken yoklama tarihinin küçüğünü
+      // kullan. Böylece createdAt'tan önce girilen retroaktif yoklamalar da
+      // hesaba dahil edilir.
+      final createdAtDay = DateTime(
+        widget.worker.createdAt.year,
+        widget.worker.createdAt.month,
+        widget.worker.createdAt.day,
+      );
+      final earliest = await ref
+          .read(attendanceRepositoryProvider)
+          .earliestDateForWorker(
+            widget.worker.id,
+            since: DateTime(2000), // tüm geçmişi tara
           );
+      periodStart =
+          (earliest != null && earliest.isBefore(createdAtDay))
+          ? earliest
+          : createdAtDay;
+    }
 
     if (periodStart.isAfter(today)) {
       setState(() => _calculating = false);

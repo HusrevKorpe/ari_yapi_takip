@@ -6,31 +6,31 @@ import '../../data/local/app_database.dart';
 import '../../shared/formatters.dart';
 import '../../shared/snackbar_helper.dart';
 
-final expensesMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
+final incomesMonthProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
-final expensesByMonthProvider = StreamProvider<List<Expense>>((ref) {
-  final month = ref.watch(expensesMonthProvider);
-  return ref.watch(expenseRepositoryProvider).watchMonth(month);
+final incomesByMonthProvider = StreamProvider<List<Income>>((ref) {
+  final month = ref.watch(incomesMonthProvider);
+  return ref.watch(incomeRepositoryProvider).watchMonth(month);
 });
 
-class ExpensesPage extends ConsumerWidget {
-  const ExpensesPage({super.key});
+class IncomesPage extends ConsumerWidget {
+  const IncomesPage({super.key});
   static const _pageBg = Colors.white;
-  static const _surfaceBg = Color(0xFFF4F4F5);
-  static const _accentGold = Color(0xFFD6B100);
-  static const _accentGoldDark = Color(0xFF8A7300);
+  static const _surfaceBg = Color(0xFFF0F7F2);
+  static const _accentGreen = Color(0xFF2E7D32);
+  static const _accentGreenLight = Color(0xFF43A047);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(expensesMonthProvider);
-    final expenses = ref.watch(expensesByMonthProvider);
+    final month = ref.watch(incomesMonthProvider);
+    final incomes = ref.watch(incomesByMonthProvider);
 
     return Scaffold(
       backgroundColor: _pageBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Giderler'),
+        title: const Text('Gelirler'),
         actions: [
           IconButton(
             onPressed: () async {
@@ -41,18 +41,18 @@ class ExpensesPage extends ConsumerWidget {
                 initialDate: month,
               );
               if (picked != null) {
-                ref.read(expensesMonthProvider.notifier).state = picked;
+                ref.read(incomesMonthProvider.notifier).state = picked;
               }
             },
             icon: const Icon(Icons.calendar_month),
           ),
         ],
       ),
-      body: expenses.when(
+      body: incomes.when(
         data: (items) {
           final totalAmount = items.fold<double>(
             0,
-            (sum, expense) => sum + expense.amount,
+            (sum, income) => sum + income.amount,
           );
 
           return ListView(
@@ -68,11 +68,11 @@ class ExpensesPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Toplam Gider',
+                      'Toplam Gelir',
                       style: TextStyle(
                         fontSize: 22,
                         letterSpacing: 0.6,
-                        color: Color(0xFF4F472A),
+                        color: Color(0xFF1B4A1E),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -97,7 +97,7 @@ class ExpensesPage extends ConsumerWidget {
                   ),
                   padding: const EdgeInsets.all(18),
                   child: const Text(
-                    'Bu ay icin gider kaydi yok.',
+                    'Bu ay icin gelir kaydi yok.',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -106,11 +106,11 @@ class ExpensesPage extends ConsumerWidget {
                   ),
                 ),
               ...items.asMap().entries.map(
-                (entry) => _ExpenseRowCard(
-                  expense: entry.value,
+                (entry) => _IncomeRowCard(
+                  income: entry.value,
                   accent: _accentByIndex(entry.key),
                   onDelete: () =>
-                      _confirmDeleteExpense(context, ref, expense: entry.value),
+                      _confirmDeleteIncome(context, ref, income: entry.value),
                 ),
               ),
             ],
@@ -126,7 +126,7 @@ class ExpensesPage extends ConsumerWidget {
           gradient: const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [_accentGoldDark, _accentGold],
+            colors: [_accentGreen, _accentGreenLight],
           ),
           boxShadow: const [
             BoxShadow(
@@ -137,7 +137,7 @@ class ExpensesPage extends ConsumerWidget {
           ],
         ),
         child: FilledButton.icon(
-          onPressed: () => _showExpenseDialog(context, ref),
+          onPressed: () => _showIncomeDialog(context, ref),
           style: FilledButton.styleFrom(
             minimumSize: const Size(170, 56),
             backgroundColor: Colors.transparent,
@@ -149,7 +149,7 @@ class ExpensesPage extends ConsumerWidget {
           ),
           icon: const Icon(Icons.add, size: 28),
           label: const Text(
-            'GIDER EKLE',
+            'GELIR EKLE',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -163,16 +163,16 @@ class ExpensesPage extends ConsumerWidget {
 
   Color _accentByIndex(int index) {
     const palette = <Color>[
-      Color(0xFF8A7300),
-      Color(0xFF8A7300),
-      Color(0xFF8A7300),
+      Color(0xFF2E7D32),
+      Color(0xFF388E3C),
+      Color(0xFF43A047),
       Color(0xFF0A7E82),
-      Color(0xFFC62828),
+      Color(0xFF1B5E20),
     ];
     return palette[index % palette.length];
   }
 
-  Future<void> _showExpenseDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showIncomeDialog(BuildContext context, WidgetRef ref) async {
     final amountController = TextEditingController();
     final categoryController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -195,7 +195,7 @@ class ExpensesPage extends ConsumerWidget {
                   width: 92,
                   height: 92,
                   decoration: BoxDecoration(
-                    color: const Color(0x22D6B100),
+                    color: const Color(0x222E7D32),
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
@@ -207,16 +207,16 @@ class ExpensesPage extends ConsumerWidget {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEE4B8),
+                    color: const Color(0xFFB8D8B8),
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F5EC),
+                  color: const Color(0xFFF3F9F3),
                   borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: const Color(0xFFE5DCC0)),
+                  border: Border.all(color: const Color(0xFFC2D9C2)),
                 ),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
@@ -229,7 +229,7 @@ class ExpensesPage extends ConsumerWidget {
                           width: 42,
                           height: 5,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFD3CAB0),
+                            color: const Color(0xFFB0CAB0),
                             borderRadius: BorderRadius.circular(999),
                           ),
                         ),
@@ -241,7 +241,7 @@ class ExpensesPage extends ConsumerWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEDE1A8),
+                          color: const Color(0xFFC8E6C9),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Text(
@@ -250,24 +250,24 @@ class ExpensesPage extends ConsumerWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 1.1,
-                            color: Color(0xFF6D5A00),
+                            color: Color(0xFF1B5E20),
                           ),
                         ),
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        'Gider Ekle',
+                        'Gelir Ekle',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E1A12),
+                              color: const Color(0xFF1A2E1A),
                             ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Kisa, temiz ve hizli bir kayit alani.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF6E6759),
+                          color: const Color(0xFF4E6750),
                           height: 1.35,
                         ),
                       ),
@@ -317,11 +317,11 @@ class ExpensesPage extends ConsumerWidget {
                             child: OutlinedButton(
                               onPressed: () => Navigator.pop(context),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF5F5A50),
+                                foregroundColor: const Color(0xFF4E5A50),
                                 side: const BorderSide(
-                                  color: Color(0xFFD8CFB2),
+                                  color: Color(0xFFB8D0B8),
                                 ),
-                                backgroundColor: const Color(0xFFFDFBF4),
+                                backgroundColor: const Color(0xFFFAFDFA),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 15,
                                 ),
@@ -350,8 +350,8 @@ class ExpensesPage extends ConsumerWidget {
                                 }
 
                                 await ref
-                                    .read(expenseRepositoryProvider)
-                                    .addExpense(
+                                    .read(incomeRepositoryProvider)
+                                    .addIncome(
                                       date: DateTime.now(),
                                       amount: amount,
                                       category: category,
@@ -369,7 +369,7 @@ class ExpensesPage extends ConsumerWidget {
                               },
                               style: FilledButton.styleFrom(
                                 backgroundColor: const Color(0xFF1F4037),
-                                foregroundColor: const Color(0xFFF7F2E7),
+                                foregroundColor: const Color(0xFFF0F7F0),
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 15,
                                 ),
@@ -407,28 +407,28 @@ class ExpensesPage extends ConsumerWidget {
       labelText: label,
       alignLabelWithHint: alignLabelWithHint,
       filled: true,
-      fillColor: const Color(0xFFFFFCF5),
+      fillColor: const Color(0xFFF8FDF8),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE2D8BC)),
+        borderSide: const BorderSide(color: Color(0xFFB8D8B8)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE2D8BC)),
+        borderSide: const BorderSide(color: Color(0xFFB8D8B8)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFB89B29), width: 1.4),
+        borderSide: const BorderSide(color: Color(0xFF43A047), width: 1.4),
       ),
     );
   }
 
-  Future<void> _confirmDeleteExpense(
+  Future<void> _confirmDeleteIncome(
     BuildContext context,
     WidgetRef ref, {
-    required Expense expense,
+    required Income income,
   }) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -440,7 +440,7 @@ class ExpensesPage extends ConsumerWidget {
             decoration: BoxDecoration(
               color: _surfaceBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFD8D8DE)),
+              border: Border.all(color: const Color(0xFFD0D8D0)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x12000000),
@@ -461,19 +461,19 @@ class ExpensesPage extends ConsumerWidget {
                       height: 46,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        color: const Color(0xFFFFF3CC),
-                        border: Border.all(color: const Color(0xFFE7D28C)),
+                        color: const Color(0xFFDCEDDC),
+                        border: Border.all(color: const Color(0xFF9EC99E)),
                       ),
                       child: const Icon(
                         Icons.delete_outline_rounded,
-                        color: _accentGoldDark,
+                        color: _accentGreen,
                         size: 24,
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Gideri Sil',
+                        'Geliri Sil',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFF1A1A1A),
@@ -494,7 +494,7 @@ class ExpensesPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        expense.category,
+                        income.category,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -503,17 +503,17 @@ class ExpensesPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        formatMoney(expense.amount),
+                        formatMoney(income.amount),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: _accentGoldDark,
+                          color: _accentGreen,
                         ),
                       ),
-                      if ((expense.description ?? '').trim().isNotEmpty) ...[
+                      if ((income.description ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
-                          expense.description!.trim(),
+                          income.description!.trim(),
                           style: const TextStyle(
                             fontSize: 13,
                             height: 1.35,
@@ -561,7 +561,7 @@ class ExpensesPage extends ConsumerWidget {
                           gradient: const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [_accentGoldDark, _accentGold],
+                            colors: [_accentGreen, _accentGreenLight],
                           ),
                         ),
                         child: FilledButton(
@@ -569,7 +569,7 @@ class ExpensesPage extends ConsumerWidget {
                           style: FilledButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            foregroundColor: const Color(0xFF5F5200),
+                            foregroundColor: const Color(0xFFE8F5E9),
                             minimumSize: const Size.fromHeight(48),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -597,23 +597,23 @@ class ExpensesPage extends ConsumerWidget {
     if (confirmed != true) return;
 
     await ref
-        .read(expenseRepositoryProvider)
-        .deleteExpense(expenseId: expense.id);
+        .read(incomeRepositoryProvider)
+        .deleteIncome(incomeId: income.id);
 
     if (context.mounted) {
-      showSuccessSnackBar(context, 'Gider silindi.');
+      showSuccessSnackBar(context, 'Gelir silindi.');
     }
   }
 }
 
-class _ExpenseRowCard extends StatelessWidget {
-  const _ExpenseRowCard({
-    required this.expense,
+class _IncomeRowCard extends StatelessWidget {
+  const _IncomeRowCard({
+    required this.income,
     required this.accent,
     required this.onDelete,
   });
 
-  final Expense expense;
+  final Income income;
   final Color accent;
   final VoidCallback onDelete;
 
@@ -622,7 +622,7 @@ class _ExpenseRowCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: ExpensesPage._surfaceBg,
+        color: IncomesPage._surfaceBg,
         borderRadius: BorderRadius.circular(12),
         border: Border(left: BorderSide(color: accent, width: 6)),
       ),
@@ -633,7 +633,7 @@ class _ExpenseRowCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                expense.category.toUpperCase(),
+                income.category.toUpperCase(),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -650,7 +650,7 @@ class _ExpenseRowCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  formatMoney(expense.amount).replaceFirst('₺', ''),
+                  formatMoney(income.amount).replaceFirst('₺', ''),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -659,7 +659,7 @@ class _ExpenseRowCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  formatDate(expense.expenseDate),
+                  formatDate(income.incomeDate),
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF6B6B6B),
@@ -671,7 +671,7 @@ class _ExpenseRowCard extends StatelessWidget {
             const SizedBox(width: 12),
             IconButton(
               onPressed: onDelete,
-              tooltip: 'Gideri sil',
+              tooltip: 'Geliri sil',
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.delete_outline, color: Color(0xFFC62828)),
             ),

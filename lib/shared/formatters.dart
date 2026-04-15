@@ -2,7 +2,7 @@ import 'package:intl/intl.dart';
 
 final _currencyFormat = NumberFormat.currency(
   locale: 'tr_TR',
-  symbol: 'TRY ',
+  symbol: '₺',
   decimalDigits: 2,
 );
 

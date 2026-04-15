@@ -68,6 +68,23 @@ extension ExpenseSyncExt on Expense {
   };
 }
 
+extension IncomeSyncExt on Income {
+  Map<String, dynamic> toSyncMap() => {
+    'id': id,
+    'gelirTarihi': incomeDate.toIso8601String(),
+    'tutar': amount,
+    'kategori': category,
+    'santiyeId': siteId,
+    'aciklama': description,
+    'olusturulmaTarihi': createdAt.toIso8601String(),
+    'guncellenmeTarihi': updatedAt.toIso8601String(),
+    'silinmeTarihi': deletedAt?.toIso8601String(),
+    'sonDegistiren': lastModifiedBy,
+    'cihazId': deviceId,
+    'senkronSurumu': syncVersion,
+  };
+}
+
 extension AdvanceDebtSyncExt on AdvanceDebt {
   Map<String, dynamic> toSyncMap() => {
     'id': id,
