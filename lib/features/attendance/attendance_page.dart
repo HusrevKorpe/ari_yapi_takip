@@ -9,13 +9,17 @@ import '../../shared/formatters.dart';
 import '../../shared/month_utils.dart';
 import '../../shared/snackbar_helper.dart';
 import 'attendance_grid_page.dart';
+import 'widgets/worker_attendance_card.dart';
 
 final attendanceWorkersProvider = StreamProvider<List<Worker>>((ref) {
   return ref.watch(workerRepositoryProvider).watchActiveWorkers();
 });
 
 final attendanceByDateProvider =
-    StreamProvider.family<List<AttendanceEntry>, DateTime>((ref, date) {
+    StreamProvider.autoDispose.family<List<AttendanceEntry>, DateTime>((
+      ref,
+      date,
+    ) {
       return ref
           .watch(attendanceRepositoryProvider)
           .watchByDate(normalizeDay(date));
@@ -25,30 +29,76 @@ final attendanceSitesProvider = StreamProvider<List<Site>>((ref) {
   return ref.watch(siteRepositoryProvider).watchActiveSites();
 });
 
-class AttendancePage extends ConsumerStatefulWidget {
+final selectedAttendanceDateProvider = StateProvider<DateTime>(
+  (ref) => normalizeDay(DateTime.now()),
+);
+
+class AttendanceDraft {
+  const AttendanceDraft({
+    this.statusByWorker = const {},
+    this.siteByWorker = const {},
+    this.savedSuccessfully = false,
+  });
+
+  final Map<String, AttendanceStatus> statusByWorker;
+  final Map<String, String?> siteByWorker;
+  final bool savedSuccessfully;
+
+  bool get isDirty =>
+      statusByWorker.isNotEmpty || siteByWorker.isNotEmpty;
+
+  AttendanceDraft copyWith({
+    Map<String, AttendanceStatus>? statusByWorker,
+    Map<String, String?>? siteByWorker,
+    bool? savedSuccessfully,
+  }) {
+    return AttendanceDraft(
+      statusByWorker: statusByWorker ?? this.statusByWorker,
+      siteByWorker: siteByWorker ?? this.siteByWorker,
+      savedSuccessfully: savedSuccessfully ?? this.savedSuccessfully,
+    );
+  }
+}
+
+class AttendanceDraftNotifier extends StateNotifier<AttendanceDraft> {
+  AttendanceDraftNotifier() : super(const AttendanceDraft());
+
+  void setStatus(String workerId, AttendanceStatus status) {
+    state = state.copyWith(
+      statusByWorker: {...state.statusByWorker, workerId: status},
+      savedSuccessfully: false,
+    );
+  }
+
+  void setSite(String workerId, String? siteId) {
+    state = state.copyWith(
+      siteByWorker: {...state.siteByWorker, workerId: siteId},
+      savedSuccessfully: false,
+    );
+  }
+
+  void reset() => state = const AttendanceDraft();
+
+  void markSaved() => state = const AttendanceDraft(savedSuccessfully: true);
+}
+
+final attendanceDraftProvider =
+    StateNotifierProvider<AttendanceDraftNotifier, AttendanceDraft>(
+  (ref) => AttendanceDraftNotifier(),
+);
+
+class AttendancePage extends ConsumerWidget {
   const AttendancePage({super.key});
 
   @override
-  ConsumerState<AttendancePage> createState() => _AttendancePageState();
-}
-
-class _AttendancePageState extends ConsumerState<AttendancePage> {
-  DateTime _selectedDate = normalizeDay(DateTime.now());
-  final Map<String, AttendanceStatus> _statusByWorker = {};
-  final Map<String, String?> _siteByWorker = {};
-  bool _savedSuccessfully = false;
-
-  bool get _isDirty =>
-      _statusByWorker.isNotEmpty || _siteByWorker.isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedDate = ref.watch(selectedAttendanceDateProvider);
     final workersAsync = ref.watch(attendanceWorkersProvider);
-    final entriesAsync = ref.watch(attendanceByDateProvider(_selectedDate));
+    final entriesAsync = ref.watch(attendanceByDateProvider(selectedDate));
     final sitesAsync = ref.watch(attendanceSitesProvider);
 
     return Scaffold(
-      appBar: _buildAppBar(context),
+      appBar: _AttendanceAppBar(selectedDate: selectedDate),
       body: workersAsync.when(
         data: (workers) {
           return entriesAsync.when(
@@ -59,39 +109,20 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                 );
               }
 
-              final existingByWorker = {for (final e in entries) e.workerId: e};
-              final sites = sitesAsync.valueOrNull ?? [];
+              final existingByWorker = {
+                for (final e in entries) e.workerId: e,
+              };
+              final sites = sitesAsync.valueOrNull ?? const <Site>[];
 
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                 itemCount: workers.length,
                 itemBuilder: (context, index) {
                   final worker = workers[index];
-                  final existing = existingByWorker[worker.id];
-
-                  final selectedStatus = _statusByWorker.containsKey(worker.id)
-                      ? _statusByWorker[worker.id]
-                      : _statusFromEntry(existing);
-
-                  final selectedSiteId = _siteByWorker.containsKey(worker.id)
-                      ? _siteByWorker[worker.id]
-                      : existing?.siteId ?? worker.defaultSiteId;
-
-                  return _WorkerAttendanceCard(
+                  return _AttendanceCardConsumer(
                     worker: worker,
-                    selectedStatus: selectedStatus,
-                    selectedSiteId: selectedSiteId,
+                    existing: existingByWorker[worker.id],
                     sites: sites,
-                    onStatusChanged: (status) {
-                      setState(() {
-                        _statusByWorker[worker.id] = status;
-                      });
-                    },
-                    onSiteChanged: (siteId) {
-                      setState(() {
-                        _siteByWorker[worker.id] = siteId;
-                      });
-                    },
                   );
                 },
               );
@@ -105,8 +136,71 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       ),
     );
   }
+}
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+class _AttendanceCardConsumer extends ConsumerWidget {
+  const _AttendanceCardConsumer({
+    required this.worker,
+    required this.existing,
+    required this.sites,
+  });
+
+  final Worker worker;
+  final AttendanceEntry? existing;
+  final List<Site> sites;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draftStatus = ref.watch(
+      attendanceDraftProvider.select(
+        (s) => s.statusByWorker.containsKey(worker.id)
+            ? (hasKey: true, value: s.statusByWorker[worker.id])
+            : (hasKey: false, value: null),
+      ),
+    );
+    final draftSite = ref.watch(
+      attendanceDraftProvider.select(
+        (s) => s.siteByWorker.containsKey(worker.id)
+            ? (hasKey: true, value: s.siteByWorker[worker.id])
+            : (hasKey: false, value: null),
+      ),
+    );
+
+    final selectedStatus = draftStatus.hasKey
+        ? draftStatus.value
+        : _statusFromEntry(existing);
+    final selectedSiteId = draftSite.hasKey
+        ? draftSite.value
+        : existing?.siteId ?? worker.defaultSiteId;
+
+    final notifier = ref.read(attendanceDraftProvider.notifier);
+
+    return WorkerAttendanceCard(
+      worker: worker,
+      selectedStatus: selectedStatus,
+      selectedSiteId: selectedSiteId,
+      sites: sites,
+      onStatusChanged: (status) => notifier.setStatus(worker.id, status),
+      onSiteChanged: (siteId) => notifier.setSite(worker.id, siteId),
+    );
+  }
+}
+
+class _AttendanceAppBar extends ConsumerWidget
+    implements PreferredSizeWidget {
+  const _AttendanceAppBar({required this.selectedDate});
+
+  final DateTime selectedDate;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(84);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final draft = ref.watch(attendanceDraftProvider);
+    final isDirty = draft.isDirty;
+    final savedSuccessfully = draft.savedSuccessfully;
+
     return AppBar(
       toolbarHeight: 84,
       titleSpacing: 12,
@@ -120,12 +214,13 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           ),
           const SizedBox(height: 4),
           Text(
-            formatDate(_selectedDate),
+            formatDate(selectedDate),
             style: TextStyle(
               fontSize: 13,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.65),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.65),
             ),
           ),
         ],
@@ -134,29 +229,29 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: OutlinedButton.icon(
-            onPressed: _isDirty ? () => _save(context, ref) : null,
+            onPressed: isDirty ? () => _save(context, ref) : null,
             icon: Icon(
-              _savedSuccessfully && !_isDirty
+              savedSuccessfully && !isDirty
                   ? Icons.check_rounded
                   : Icons.save_rounded,
               size: 17,
             ),
             label: Text(
-              _savedSuccessfully && !_isDirty ? 'Kaydedildi' : 'Kaydet',
+              savedSuccessfully && !isDirty ? 'Kaydedildi' : 'Kaydet',
             ),
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: _isDirty
+              foregroundColor: isDirty
                   ? const Color(0xFF8A7300)
-                  : _savedSuccessfully
-                  ? const Color(0xFF2E7D32)
-                  : const Color(0xFFAAAAAA),
+                  : savedSuccessfully
+                      ? const Color(0xFF2E7D32)
+                      : const Color(0xFFAAAAAA),
               side: BorderSide(
-                color: _isDirty
+                color: isDirty
                     ? const Color(0xFF8A7300)
-                    : _savedSuccessfully
-                    ? const Color(0xFF2E7D32)
-                    : const Color(0xFFCCCCCC),
+                    : savedSuccessfully
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFFCCCCCC),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               textStyle: const TextStyle(
@@ -205,15 +300,12 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                 context: context,
                 firstDate: DateTime(2024),
                 lastDate: DateTime(2100),
-                initialDate: _selectedDate,
+                initialDate: selectedDate,
               );
               if (picked != null) {
-                setState(() {
-                  _selectedDate = normalizeDay(picked);
-                  _statusByWorker.clear();
-                  _siteByWorker.clear();
-                  _savedSuccessfully = false;
-                });
+                ref.read(selectedAttendanceDateProvider.notifier).state =
+                    normalizeDay(picked);
+                ref.read(attendanceDraftProvider.notifier).reset();
               }
             },
             icon: const Icon(Icons.calendar_month_rounded),
@@ -224,27 +316,16 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     );
   }
 
-  AttendanceStatus? _statusFromEntry(AttendanceEntry? entry) {
-    if (entry == null) return null;
-    final mapped = AttendanceStatusX.fromCode(entry.status);
-    if (mapped == AttendanceStatus.worked ||
-        mapped == AttendanceStatus.halfDay ||
-        mapped == AttendanceStatus.absent) {
-      return mapped;
-    }
-    return AttendanceStatus.absent;
-  }
-
   Future<void> _save(BuildContext context, WidgetRef ref) async {
+    final selectedDate = ref.read(selectedAttendanceDateProvider);
+    final draft = ref.read(attendanceDraftProvider);
     final workers = await ref.read(workerRepositoryProvider).getActiveWorkers();
     final existingEntries = await ref
         .read(attendanceRepositoryProvider)
-        .watchByDate(_selectedDate)
+        .watchByDate(selectedDate)
         .first;
-    final sites = await ref
-        .read(siteRepositoryProvider)
-        .watchActiveSites()
-        .first;
+    final sites =
+        await ref.read(siteRepositoryProvider).watchActiveSites().first;
 
     final existingByWorker = {for (final e in existingEntries) e.workerId: e};
     final fallbackSiteId = sites.isNotEmpty ? sites.first.id : null;
@@ -252,17 +333,17 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     final inputs = <AttendanceInput>[];
 
     for (final worker in workers) {
-      final status = _statusByWorker.containsKey(worker.id)
-          ? _statusByWorker[worker.id]
+      final status = draft.statusByWorker.containsKey(worker.id)
+          ? draft.statusByWorker[worker.id]
           : _statusFromEntry(existingByWorker[worker.id]);
 
       if (status == null) continue;
 
       final resolvedSiteId = status.requiresSite
-          ? (_siteByWorker[worker.id] ??
-                existingByWorker[worker.id]?.siteId ??
-                worker.defaultSiteId ??
-                fallbackSiteId)
+          ? (draft.siteByWorker[worker.id] ??
+              existingByWorker[worker.id]?.siteId ??
+              worker.defaultSiteId ??
+              fallbackSiteId)
           : null;
 
       if (status.requiresSite && resolvedSiteId == null) {
@@ -287,20 +368,15 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     try {
       await ref
           .read(attendanceRepositoryProvider)
-          .saveDailyAttendance(date: _selectedDate, entries: inputs);
+          .saveDailyAttendance(date: selectedDate, entries: inputs);
 
-      setState(() {
-        _statusByWorker.clear();
-        _siteByWorker.clear();
-        _savedSuccessfully = true;
-      });
+      ref.read(attendanceDraftProvider.notifier).markSaved();
       if (context.mounted) {
         showSuccessSnackBar(context, 'Yoklama kaydedildi.');
       }
     } catch (e) {
       if (context.mounted) {
-        final message = _readableSaveError(e);
-        showErrorSnackBar(context, message);
+        showErrorSnackBar(context, _readableSaveError(e));
       }
     }
   }
@@ -313,264 +389,17 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       }
       return 'Yoklama kaydedilemedi.';
     }
-
     return 'Yoklama kaydedilirken bir hata olustu. Lutfen tekrar deneyin.';
   }
 }
 
-class _WorkerAttendanceCard extends StatelessWidget {
-  const _WorkerAttendanceCard({
-    required this.worker,
-    required this.selectedStatus,
-    required this.selectedSiteId,
-    required this.sites,
-    required this.onStatusChanged,
-    required this.onSiteChanged,
-  });
-
-  final Worker worker;
-  final AttendanceStatus? selectedStatus;
-  final String? selectedSiteId;
-  final List<Site> sites;
-  final ValueChanged<AttendanceStatus> onStatusChanged;
-  final ValueChanged<String?> onSiteChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final presentSelected = selectedStatus == AttendanceStatus.worked;
-    final absentSelected = selectedStatus == AttendanceStatus.absent;
-    final halfDaySelected = selectedStatus == AttendanceStatus.halfDay;
-    final showSites = (presentSelected || halfDaySelected) && sites.isNotEmpty;
-
-    final accent = presentSelected
-        ? const Color(0xFF0C8A7A)
-        : absentSelected
-        ? const Color(0xFFC62828)
-        : halfDaySelected
-        ? const Color(0xFFE67E00)
-        : const Color(0xFF8D8D8D);
-
-    final subtitle = (worker.notes ?? '').trim().isEmpty
-        ? 'CALISAN'
-        : worker.notes!.trim().toUpperCase();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: accent, width: 2.8)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x11000000),
-            blurRadius: 6,
-            offset: Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8E8E8),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _initials(worker.fullName),
-                    style: const TextStyle(
-                      color: Color(0xFF6F6F6F),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        worker.fullName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          height: 1.05,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF7A7A7A),
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatusButton(
-                    label: 'GELDI',
-                    selected: presentSelected,
-                    selectedColor: const Color(0xFF4CAF50),
-                    onTap: () => onStatusChanged(AttendanceStatus.worked),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _StatusButton(
-                    label: 'YARIM GUN',
-                    selected: halfDaySelected,
-                    selectedColor: const Color(0xFFE67E00),
-                    selectedTextColor: Colors.white,
-                    onTap: () => onStatusChanged(AttendanceStatus.halfDay),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _StatusButton(
-                    label: 'GELMEDI',
-                    selected: absentSelected,
-                    selectedColor: const Color(0xFFC62828),
-                    selectedTextColor: Colors.white,
-                    onTap: () => onStatusChanged(AttendanceStatus.absent),
-                  ),
-                ),
-              ],
-            ),
-            if (showSites) ...[
-              const SizedBox(height: 6),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: sites.map((site) {
-                    final isSelected = selectedSiteId == site.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _SiteChip(
-                        label: site.name,
-                        selected: isSelected,
-                        onTap: () => onSiteChanged(isSelected ? null : site.id),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
+AttendanceStatus? _statusFromEntry(AttendanceEntry? entry) {
+  if (entry == null) return null;
+  final mapped = AttendanceStatusX.fromCode(entry.status);
+  if (mapped == AttendanceStatus.worked ||
+      mapped == AttendanceStatus.halfDay ||
+      mapped == AttendanceStatus.absent) {
+    return mapped;
   }
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '--';
-    if (parts.length == 1) {
-      return parts.first
-          .substring(0, parts.first.length >= 2 ? 2 : 1)
-          .toUpperCase();
-    }
-    return (parts.first[0] + parts.last[0]).toUpperCase();
-  }
-}
-
-class _SiteChip extends StatelessWidget {
-  const _SiteChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1A6B5A) : const Color(0xFFEEEEEE),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : const Color(0xFF666666),
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusButton extends StatelessWidget {
-  const _StatusButton({
-    required this.label,
-    required this.selected,
-    required this.selectedColor,
-    required this.onTap,
-    this.selectedTextColor,
-  });
-
-  final String label;
-  final bool selected;
-  final Color selectedColor;
-  final Color? selectedTextColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = selected ? selectedColor : const Color(0xFFE7E7E7);
-    final textColor = selected
-        ? (selectedTextColor ?? const Color(0xFF444444))
-        : const Color(0xFF767676);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(2),
-      child: Container(
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(2),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
-        ),
-      ),
-    );
-  }
+  return AttendanceStatus.absent;
 }
