@@ -25,7 +25,7 @@ class _AriAppState extends ConsumerState<AriApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ari Yapi Yonetim',
+      title: 'Arı Saha Yonetim',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       locale: const Locale('tr', 'TR'),

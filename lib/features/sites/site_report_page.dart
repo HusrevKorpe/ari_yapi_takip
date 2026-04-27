@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../data/local/repositories.dart';
 import 'widgets/site_report/report_body.dart';
 
-class SiteReportPage extends ConsumerWidget {
+class SiteReportPage extends ConsumerStatefulWidget {
   const SiteReportPage({
     super.key,
     required this.siteId,
@@ -17,13 +18,50 @@ class SiteReportPage extends ConsumerWidget {
   static const _bg = Color(0xFFF7F9F8);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reportAsync = ref.watch(siteReportProvider(siteId));
+  ConsumerState<SiteReportPage> createState() => _SiteReportPageState();
+}
+
+class _SiteReportPageState extends ConsumerState<SiteReportPage> {
+  bool _saving = false;
+
+  Future<void> _saveToFirestore(SiteReportData report) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ctx = ref.read(syncContextProvider);
+      if (ctx.organizationId.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Organizasyon bulunamadi.')),
+        );
+        return;
+      }
+      await ref.read(siteReportFirestoreRepositoryProvider).saveReport(
+            organizationId: ctx.organizationId,
+            userId: ctx.userId,
+            report: report,
+          );
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Rapor Firestore\'a kaydedildi.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Kaydedilemedi: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reportAsync = ref.watch(siteReportProvider(widget.siteId));
+    final report = reportAsync.asData?.value;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: SiteReportPage._bg,
       appBar: AppBar(
-        backgroundColor: _bg,
+        backgroundColor: SiteReportPage._bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -32,16 +70,30 @@ class SiteReportPage extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            icon: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.cloud_upload_rounded),
+            tooltip: 'Firestore\'a kaydet',
+            onPressed: (report == null || _saving)
+                ? null
+                : () => _saveToFirestore(report),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Yenile',
-            onPressed: () => ref.invalidate(siteReportProvider(siteId)),
+            onPressed: () =>
+                ref.invalidate(siteReportProvider(widget.siteId)),
           ),
         ],
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              siteName,
+              widget.siteName,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,

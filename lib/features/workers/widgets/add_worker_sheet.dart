@@ -2,15 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../../data/local/app_database.dart';
 import '../../../shared/pay_frequency.dart';
 
 const _accentGoldDark = Color(0xFF8A7300);
 
-Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
-  final nameController = TextEditingController();
-  final wageController = TextEditingController();
-  final noteController = TextEditingController();
-  var selectedFrequency = PayFrequency.weekly;
+Future<void> showAddWorkerSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  Worker? existing,
+}) {
+  final isEditing = existing != null;
+  final nameController = TextEditingController(text: existing?.fullName ?? '');
+  final wageController = TextEditingController(
+    text: existing != null ? _formatWage(existing.dailyWage) : '',
+  );
+  final noteController = TextEditingController(text: existing?.notes ?? '');
+  var selectedFrequency = existing != null
+      ? PayFrequencyX.fromCode(existing.payFrequency)
+      : PayFrequency.weekly;
 
   return showModalBottomSheet<void>(
     context: context,
@@ -81,9 +91,9 @@ Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
                             color: const Color(0xFFEDE1A8),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Text(
-                            'YENI CALISAN',
-                            style: TextStyle(
+                          child: Text(
+                            isEditing ? 'CALISANI DUZENLE' : 'YENI CALISAN',
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.1,
@@ -93,7 +103,7 @@ Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          'Yeni Calisan',
+                          isEditing ? 'Calisani Duzenle' : 'Yeni Calisan',
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w800,
@@ -102,7 +112,9 @@ Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Ekibe yeni kisiyi hizli ve temiz bir akista ekleyin.',
+                          isEditing
+                              ? 'Bilgileri guncelleyip kaydedin.'
+                              : 'Ekibe yeni kisiyi hizli ve temiz bir akista ekleyin.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: const Color(0xFF6E6759),
@@ -235,7 +247,9 @@ Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
                                   final name = nameController.text.trim();
                                   final wage =
                                       double.tryParse(
-                                        wageController.text.trim(),
+                                        wageController.text
+                                            .trim()
+                                            .replaceAll(',', '.'),
                                       ) ??
                                       0;
                                   if (name.isEmpty || wage <= 0) {
@@ -245,6 +259,7 @@ Future<void> showAddWorkerSheet(BuildContext context, WidgetRef ref) {
                                   await ref
                                       .read(workerRepositoryProvider)
                                       .saveWorker(
+                                        id: existing?.id,
                                         fullName: name,
                                         dailyWage: wage,
                                         payFrequency: selectedFrequency.code,
@@ -306,4 +321,11 @@ InputDecoration _inputDecoration({
       borderSide: const BorderSide(color: _accentGoldDark, width: 1.4),
     ),
   );
+}
+
+String _formatWage(double wage) {
+  if (wage == wage.roundToDouble()) {
+    return wage.toStringAsFixed(0);
+  }
+  return wage.toString();
 }

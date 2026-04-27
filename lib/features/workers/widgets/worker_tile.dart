@@ -12,11 +12,13 @@ class WorkerTile extends StatelessWidget {
     super.key,
     required this.worker,
     required this.onTap,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final Worker worker;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -93,10 +95,23 @@ class WorkerTile extends StatelessWidget {
                       ),
                     ),
                     IconButton(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit, color: _accentTeal),
+                      tooltip: 'Calisani Duzenle',
+                      iconSize: 22,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 2),
+                    IconButton(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete, color: Color(0xFFC81616)),
                       tooltip: 'Calisani Sil',
-                      iconSize: 24,
+                      iconSize: 22,
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
