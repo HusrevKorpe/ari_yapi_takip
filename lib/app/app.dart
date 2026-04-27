@@ -25,7 +25,7 @@ class _AriAppState extends ConsumerState<AriApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ari Yapi Yonetim',
+      title: 'Arı Saha Yonetim',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       locale: const Locale('tr', 'TR'),
@@ -153,11 +153,16 @@ class _RootShellState extends ConsumerState<RootShell> {
           data: (v) => v,
           orElse: () => 0,
         );
+    final conflictCount = ref.watch(unseenConflictCountProvider).maybeWhen(
+          data: (v) => v,
+          orElse: () => 0,
+        );
 
     return Scaffold(
       body: Column(
         children: [
           if (failedCount > 0) _SyncFailureBanner(count: failedCount),
+          if (conflictCount > 0) _SyncConflictBanner(count: conflictCount),
           Expanded(child: _pages[_index]),
         ],
       ),
@@ -330,5 +335,149 @@ class _SyncFailureBanner extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// İki cihazdan eşzamanlı yapılan değişikliklerde "kim kazandı" sorusunun
+/// kullanıcıya görünür hâle gelmesini sağlar. PullSyncService çakışma tespit
+/// ettiğinde audit_logs'a kalıcı yazıyor; bu banner okunmamış kayıt sayısını
+/// gösterip detayda hangi kayıtların etkilendiğini açar.
+class _SyncConflictBanner extends ConsumerWidget {
+  const _SyncConflictBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: const Color(0xFFE8F0FE),
+      child: InkWell(
+        onTap: () => _showDetails(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.merge_type_rounded,
+                color: Color(0xFF1A4D8A),
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$count kayıtta uzak/yerel çakışması — dokunarak incele',
+                  style: const TextStyle(
+                    color: Color(0xFF1A4D8A),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF1A4D8A),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDetails(BuildContext context, WidgetRef ref) async {
+    final db = ref.read(databaseProvider);
+    final items = await db.recentConflicts();
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Çakışma kayıtları'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: items.isEmpty
+              ? const Text('Kayıt bulunamadı.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  separatorBuilder: (_, _) => const Divider(height: 12),
+                  itemBuilder: (context, i) {
+                    final it = items[i];
+                    final kindLabel = _kindLabel(it.entityType);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD7E3F7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                kindLabel,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1A4D8A),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatTimestamp(it.createdAt),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF666666),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          it.message,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Kapat'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await ref.read(localPreferencesProvider).markConflictsSeen();
+              ref.invalidate(unseenConflictCountProvider);
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('Görüldü olarak işaretle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _kindLabel(String entityType) {
+    if (entityType.startsWith('sync_conflict_overwritten_')) {
+      return 'UZAK YAZDI';
+    }
+    if (entityType.startsWith('sync_conflict_pending_skipped_')) {
+      return 'BEKLEYEN ATLANDI';
+    }
+    return 'ÇAKIŞMA';
+  }
+
+  String _formatTimestamp(DateTime ts) {
+    final local = ts.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.day)}.${two(local.month)}.${local.year} '
+        '${two(local.hour)}:${two(local.minute)}';
   }
 }

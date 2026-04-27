@@ -50,6 +50,21 @@ class LocalPreferences {
   Future<void> setLastPulledAt(String entityType, DateTime time) =>
       _prefs.setString('lastPulledAt_$entityType', time.toIso8601String());
 
+  // ---- Sync conflict notification ----
+
+  /// Kullanıcının çakışma listesine en son baktığı zaman. Bu tarihten sonra
+  /// üretilen sync_conflict audit'leri RootShell banner'ında görünür.
+  static const _conflictsSeenKey = 'syncConflictsSeenAt';
+
+  DateTime conflictsSeenAt() {
+    final raw = _prefs.getString(_conflictsSeenKey);
+    if (raw == null) return DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(raw) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  Future<void> markConflictsSeen() =>
+      _prefs.setString(_conflictsSeenKey, DateTime.now().toIso8601String());
+
   // ---- Device ID (generated once) ----
 
   Future<void> ensureDeviceId(Uuid uuid) async {

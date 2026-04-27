@@ -4,9 +4,11 @@ import 'dart:developer' as dev;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:uuid/uuid.dart';
 
 import '../local/app_database.dart';
 import 'sync_collections.dart';
+import 'sync_mappers.dart';
 
 class PullSyncService {
   PullSyncService({required AppDatabase database, required String deviceId})
@@ -15,6 +17,7 @@ class PullSyncService {
 
   final AppDatabase _db;
   final String _deviceId;
+  final Uuid _uuid = const Uuid();
   final Map<String, StreamSubscription<dynamic>> _subs = {};
 
   String? _activeOrganizationId;
@@ -137,10 +140,121 @@ class PullSyncService {
     return row != null;
   }
 
+  /// Uzaktan gelen değişiklik, yerel kayıttan **gerçekten farklı** ve farklı
+  /// bir cihazdan geliyorsa çakışmayı audit_logs'a yaz. Kullanıcı RootShell
+  /// banner'ı üzerinden bunu görüp "neden değişmiş?" diye fark eder. Aynı
+  /// payload (idempotent yazımlar) için log üretmiyoruz.
+  Future<void> _logOverwriteIfDifferent({
+    required String entityType,
+    required String entityId,
+    required int remoteVersion,
+    required int localVersion,
+    required String remoteDeviceId,
+    required String localDeviceId,
+    required Map<String, dynamic> remoteSnapshot,
+    required Map<String, dynamic> localSnapshot,
+    required String label,
+  }) async {
+    if (remoteVersion <= localVersion) return;
+    if (remoteDeviceId.isEmpty || remoteDeviceId == _deviceId) return;
+    if (_payloadsEqual(remoteSnapshot, localSnapshot)) return;
+
+    final summary = _diffSummary(localSnapshot, remoteSnapshot);
+    final from = remoteDeviceId.isEmpty
+        ? 'başka cihaz'
+        : 'cihaz ${_shortId(remoteDeviceId)}';
+    final mineSuffix = localDeviceId == _deviceId ? ' (bu cihaz)' : '';
+    await _db.addSyncConflict(
+      id: _uuid.v4(),
+      kind: 'overwritten',
+      entityType: entityType,
+      entityId: entityId,
+      message:
+          '$label: $from tarafından yapılan değişiklik yerel kaydın$mineSuffix '
+          'üzerine yazıldı. ${summary.isEmpty ? '' : 'Değişen alanlar: $summary.'} '
+          '(yerel sürüm $localVersion → uzak sürüm $remoteVersion)',
+    );
+  }
+
+  /// Yerel'de pending push varken uzaktan farklı bir cihazdan değişiklik
+  /// gelmiş — pull'u atlıyoruz (concurrent edit koruması). Kullanıcı bu
+  /// durumda iki tarafın farklı yazdığını bilsin diye not düşüyoruz.
+  Future<void> _logPendingSkip({
+    required String entityType,
+    required String entityId,
+    required Map<String, dynamic> remoteData,
+    required String label,
+  }) async {
+    final remoteDeviceId = remoteData['cihazId']?.toString() ?? '';
+    if (remoteDeviceId.isEmpty || remoteDeviceId == _deviceId) return;
+    await _db.addSyncConflict(
+      id: _uuid.v4(),
+      kind: 'pending_skipped',
+      entityType: entityType,
+      entityId: entityId,
+      message:
+          '$label: cihaz ${_shortId(remoteDeviceId)} aynı kaydı değiştirmiş '
+          'fakat bu cihazda henüz gönderilmemiş bir değişiklik olduğu için '
+          'uzaktaki güncelleme uygulanmadı. Senkronizasyondan sonra hangi '
+          'sürümün kaldığını kontrol edin.',
+    );
+  }
+
+  bool _payloadsEqual(Map<String, dynamic> a, Map<String, dynamic> b) {
+    for (final key in a.keys) {
+      if (key == 'senkronSurumu' ||
+          key == 'syncVersion' ||
+          key == 'guncellenmeTarihi' ||
+          key == 'updatedAt' ||
+          key == 'cihazId' ||
+          key == 'deviceId' ||
+          key == 'sonDegistiren' ||
+          key == 'lastModifiedBy') {
+        continue;
+      }
+      if (a[key]?.toString() != b[key]?.toString()) return false;
+    }
+    return true;
+  }
+
+  String _diffSummary(Map<String, dynamic> local, Map<String, dynamic> remote) {
+    final changed = <String>[];
+    for (final key in remote.keys) {
+      if (key == 'senkronSurumu' ||
+          key == 'syncVersion' ||
+          key == 'guncellenmeTarihi' ||
+          key == 'updatedAt' ||
+          key == 'cihazId' ||
+          key == 'deviceId' ||
+          key == 'sonDegistiren' ||
+          key == 'lastModifiedBy' ||
+          key == 'id') {
+        continue;
+      }
+      if (local[key]?.toString() != remote[key]?.toString()) {
+        changed.add(key);
+      }
+    }
+    return changed.join(', ');
+  }
+
+  String _shortId(String id) {
+    if (id.length <= 6) return id;
+    return id.substring(0, 6);
+  }
+
   Future<void> _upsertWorker(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('worker', id)) return;
+    if (await _hasPendingPush('worker', id)) {
+      await _logPendingSkip(
+        entityType: 'worker',
+        entityId: id,
+        remoteData: data,
+        label: 'İşçi kaydı',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -151,6 +265,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'worker',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'İşçi: ${existing.fullName}',
+      );
     }
 
     await _db
@@ -196,7 +321,15 @@ class PullSyncService {
   Future<void> _upsertSite(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('site', id)) return;
+    if (await _hasPendingPush('site', id)) {
+      await _logPendingSkip(
+        entityType: 'site',
+        entityId: id,
+        remoteData: data,
+        label: 'Şantiye',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -207,6 +340,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'site',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Şantiye: ${existing.name}',
+      );
     }
 
     await _db
@@ -243,7 +387,15 @@ class PullSyncService {
   Future<void> _upsertAttendance(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('attendance', id)) return;
+    if (await _hasPendingPush('attendance', id)) {
+      await _logPendingSkip(
+        entityType: 'attendance',
+        entityId: id,
+        remoteData: data,
+        label: 'Puantaj',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -254,6 +406,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'attendance',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Puantaj (${existing.workDate.toIso8601String().substring(0, 10)})',
+      );
     }
 
     await _db
@@ -287,7 +450,15 @@ class PullSyncService {
   Future<void> _upsertExpense(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('expense', id)) return;
+    if (await _hasPendingPush('expense', id)) {
+      await _logPendingSkip(
+        entityType: 'expense',
+        entityId: id,
+        remoteData: data,
+        label: 'Gider kaydı',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -298,6 +469,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'expense',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Gider: ${existing.category}',
+      );
     }
 
     await _db
@@ -333,7 +515,15 @@ class PullSyncService {
   Future<void> _upsertIncome(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('income', id)) return;
+    if (await _hasPendingPush('income', id)) {
+      await _logPendingSkip(
+        entityType: 'income',
+        entityId: id,
+        remoteData: data,
+        label: 'Gelir kaydı',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -344,6 +534,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'income',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Gelir: ${existing.category}',
+      );
     }
 
     await _db
@@ -379,7 +580,15 @@ class PullSyncService {
   Future<void> _upsertAdvanceDebt(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('advance_debt', id)) return;
+    if (await _hasPendingPush('advance_debt', id)) {
+      await _logPendingSkip(
+        entityType: 'advance_debt',
+        entityId: id,
+        remoteData: data,
+        label: 'Avans/Kesinti',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -390,6 +599,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'advance_debt',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Avans/Kesinti (${existing.type})',
+      );
     }
 
     await _db
@@ -424,7 +644,15 @@ class PullSyncService {
   Future<void> _upsertPayrollPayment(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('payroll_payment', id)) return;
+    if (await _hasPendingPush('payroll_payment', id)) {
+      await _logPendingSkip(
+        entityType: 'payroll_payment',
+        entityId: id,
+        remoteData: data,
+        label: 'Maaş ödemesi',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -435,6 +663,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'payroll_payment',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Maaş ödemesi',
+      );
     }
 
     await _db
@@ -468,7 +707,15 @@ class PullSyncService {
   Future<void> _upsertPayrollSnapshot(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
-    if (await _hasPendingPush('payroll_snapshot', id)) return;
+    if (await _hasPendingPush('payroll_snapshot', id)) {
+      await _logPendingSkip(
+        entityType: 'payroll_snapshot',
+        entityId: id,
+        remoteData: data,
+        label: 'Maaş özeti',
+      );
+      return;
+    }
     final remoteVersion = _int(
       _value(data, 'senkronSurumu', 'syncVersion'),
       fallback: 1,
@@ -479,6 +726,17 @@ class PullSyncService {
     if (existing != null) {
       if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
       if (remoteVersion < existing.syncVersion) return;
+      await _logOverwriteIfDifferent(
+        entityType: 'payroll_snapshot',
+        entityId: id,
+        remoteVersion: remoteVersion,
+        localVersion: existing.syncVersion,
+        remoteDeviceId: _str(_value(data, 'cihazId', 'deviceId')),
+        localDeviceId: existing.deviceId,
+        remoteSnapshot: data,
+        localSnapshot: existing.toSyncMap(),
+        label: 'Maaş özeti (${existing.month})',
+      );
     }
 
     await _db

@@ -150,10 +150,12 @@ class PayrollPayButton extends StatelessWidget {
     super.key,
     required this.result,
     required this.onPay,
+    this.saving = false,
   });
 
   final PayrollResult result;
   final VoidCallback onPay;
+  final bool saving;
 
   @override
   Widget build(BuildContext context) {
@@ -210,11 +212,20 @@ class PayrollPayButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          onPressed: onPay,
-          icon: const Icon(Icons.check_circle_outline, size: 20),
-          label: const Text(
-            'Maas Ver',
-            style: TextStyle(
+          onPressed: saving ? null : onPay,
+          icon: saving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.check_circle_outline, size: 20),
+          label: Text(
+            saving ? 'Kaydediliyor...' : 'Maas Ver',
+            style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,

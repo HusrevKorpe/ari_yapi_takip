@@ -214,7 +214,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -251,9 +251,44 @@ class AppDatabase extends _$AppDatabase {
           await _safeAddColumn(m, syncQueueItems, syncQueueItems.nextAttemptAt);
           await _safeAddColumn(m, syncQueueItems, syncQueueItems.lastError);
         });
+        await _runStep('v9: payroll_payments unique period index', from < 9,
+            () async {
+          // Aynı (workerId, periodStart, periodEnd) için aktif (silinmemiş)
+          // birden fazla kayıt varsa, en yenisi dışındakileri soft-delete et —
+          // aksi halde partial unique index oluşturulamaz.
+          await customStatement('''
+            UPDATE payroll_payments
+            SET deleted_at = COALESCE(deleted_at, $_epochZeroExpr),
+                sync_version = sync_version + 1
+            WHERE id IN (
+              SELECT p.id FROM payroll_payments p
+              WHERE p.deleted_at IS NULL
+                AND EXISTS (
+                  SELECT 1 FROM payroll_payments q
+                  WHERE q.deleted_at IS NULL
+                    AND q.worker_id = p.worker_id
+                    AND q.period_start = p.period_start
+                    AND q.period_end = p.period_end
+                    AND (q.paid_at > p.paid_at
+                         OR (q.paid_at = p.paid_at AND q.id > p.id))
+                )
+            );
+          ''');
+          await customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS '
+            'payroll_payments_unique_active_period '
+            'ON payroll_payments(worker_id, period_start, period_end) '
+            'WHERE deleted_at IS NULL;',
+          );
+        });
       },
     );
   }
+
+  /// SQLite'da `strftime('%s', 'now')` kadar dinamik default'ları ALTER
+  /// içinde kullanamadığımız için epoch=0 sabiti yeterli — sadece duplicate
+  /// kayıtları soft-delete olarak işaretliyoruz, gerçek tarih kritik değil.
+  static const String _epochZeroExpr = '0';
 
   Future<void> _runStep(
     String label,
@@ -502,6 +537,47 @@ class AppDatabase extends _$AppDatabase {
         message: message,
       ),
     );
+  }
+
+  /// Pull tarafında tespit edilen çakışmaları (uzak yerelin üzerine yazıldı,
+  /// uzaktaki değişiklik bekleyen yerel kayıt nedeniyle atlandı, vs.) kalıcı
+  /// olarak audit_logs içine yazar. Ayrı tablo açmak yerine type prefix'i ile
+  /// işaretliyoruz; UI bu kayıtları stream üzerinden listeleyip kullanıcıya
+  /// gösteriyor.
+  Future<void> addSyncConflict({
+    required String id,
+    required String kind, // 'overwritten' | 'pending_skipped' | 'remote_stale'
+    required String entityType,
+    required String entityId,
+    required String message,
+  }) {
+    return into(auditLogs).insert(
+      AuditLogsCompanion.insert(
+        id: id,
+        entityType: 'sync_conflict_${kind}_$entityType',
+        entityId: entityId,
+        message: message,
+      ),
+    );
+  }
+
+  Stream<int> unseenConflictCount(DateTime since) {
+    final countExp = auditLogs.id.count();
+    final query = selectOnly(auditLogs)
+      ..addColumns([countExp])
+      ..where(
+        auditLogs.entityType.like('sync_conflict_%') &
+            auditLogs.createdAt.isBiggerThanValue(since),
+      );
+    return query.watchSingle().map((row) => row.read(countExp) ?? 0);
+  }
+
+  Future<List<AuditLog>> recentConflicts({int limit = 50}) {
+    final query = select(auditLogs)
+      ..where((a) => a.entityType.like('sync_conflict_%'))
+      ..orderBy([(a) => OrderingTerm.desc(a.createdAt)])
+      ..limit(limit);
+    return query.get();
   }
 
   Future<void> clearTenantScopedData() async {

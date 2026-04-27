@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/repositories.dart';
+import '../../data/remote/site_report_firestore_repository.dart';
 import 'database_providers.dart';
 import 'preferences_providers.dart';
 
@@ -72,4 +73,9 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
 
 final siteReportRepositoryProvider = Provider<SiteReportRepository>((ref) {
   return SiteReportRepository(ref.watch(databaseProvider));
+});
+
+final siteReportFirestoreRepositoryProvider =
+    Provider<SiteReportFirestoreRepository>((ref) {
+  return SiteReportFirestoreRepository();
 });

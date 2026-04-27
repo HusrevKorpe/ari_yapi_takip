@@ -5,6 +5,28 @@ import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
 
+/// Aynı işçi + dönem için zaten aktif bir ödeme varken yeniden kaydetme
+/// denenirse fırlatılır. UI bu hatayı yakalayıp kullanıcıya friendly mesaj
+/// gösterir; hızlı çift tıklama ya da iki cihazdan eşzamanlı ödeme bu sayede
+/// duplicate satır oluşturmadan engellenir.
+class DuplicatePaymentException implements Exception {
+  DuplicatePaymentException({
+    required this.workerId,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.existingId,
+  });
+
+  final String workerId;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  final String existingId;
+
+  @override
+  String toString() =>
+      'Bu döneme ait ödeme zaten kayıtlı (id=$existingId).';
+}
+
 class PaymentRepository {
   PaymentRepository(this._db, this._uuid, this._ctx);
 
@@ -22,6 +44,30 @@ class PaymentRepository {
     final now = DateTime.now();
 
     await _db.transaction(() async {
+      // Pre-check: aynı dönem için aktif (silinmemiş) bir ödeme varsa hata
+      // fırlat. Hızlı çift tıklama veya iki cihazdan eşzamanlı kayıt durumunda
+      // partial unique index zaten ikinci INSERT'i reddeder; ancak burada
+      // anlaşılır bir exception fırlatabilmek ve audit yazabilmek için elle
+      // kontrol ediyoruz.
+      final existing = await (_db.select(_db.payrollPayments)
+            ..where(
+              (p) =>
+                  p.workerId.equals(workerId) &
+                  p.periodStart.equals(periodStart) &
+                  p.periodEnd.equals(periodEnd) &
+                  p.deletedAt.isNull(),
+            )
+            ..limit(1))
+          .getSingleOrNull();
+      if (existing != null) {
+        throw DuplicatePaymentException(
+          workerId: workerId,
+          periodStart: periodStart,
+          periodEnd: periodEnd,
+          existingId: existing.id,
+        );
+      }
+
       await _db.into(_db.payrollPayments).insert(
         PayrollPaymentsCompanion.insert(
           id: id,

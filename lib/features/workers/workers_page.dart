@@ -127,6 +127,11 @@ class WorkersPage extends ConsumerWidget {
                                 worker: worker,
                                 onTap: () =>
                                     _showWorkerDetail(context, worker),
+                                onEdit: () => showAddWorkerSheet(
+                                  context,
+                                  ref,
+                                  existing: worker,
+                                ),
                                 onDelete: () =>
                                     confirmDeleteWorker(context, ref, worker),
                               );
