@@ -1,7 +1,7 @@
 name: ari_yapi_takip
 description: "Ari Yapi Takip - saha yonetim uygulamasi"
 publish_to: 'none'
-version: 1.0.15
+version: 1.0.16
 
 environment:
   sdk: ^3.11.0

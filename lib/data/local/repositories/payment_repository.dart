@@ -97,6 +97,15 @@ class PaymentRepository {
     });
   }
 
+  Future<double> totalPaid(String workerId) async {
+    final payments = await (_db.select(_db.payrollPayments)
+          ..where(
+            (p) => p.workerId.equals(workerId) & p.deletedAt.isNull(),
+          ))
+        .get();
+    return payments.fold<double>(0, (sum, p) => sum + p.amount);
+  }
+
   Future<DateTime?> lastPaymentEnd(String workerId) async {
     final query = _db.select(_db.payrollPayments)
       ..where((p) => p.workerId.equals(workerId) & p.deletedAt.isNull())

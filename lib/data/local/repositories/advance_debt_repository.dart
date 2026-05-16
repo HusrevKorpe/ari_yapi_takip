@@ -54,6 +54,27 @@ class AdvanceDebtRepository {
     });
   }
 
+  Future<({double advances, double debts})> lifetimeTotals(
+    String workerId,
+  ) async {
+    final entries = await (_db.select(_db.advanceDebts)
+          ..where(
+            (a) => a.workerId.equals(workerId) & a.deletedAt.isNull(),
+          ))
+        .get();
+
+    double advances = 0;
+    double debts = 0;
+    for (final e in entries) {
+      if (e.type == 'advance') {
+        advances += e.amount;
+      } else if (e.type == 'debt') {
+        debts += e.amount;
+      }
+    }
+    return (advances: advances, debts: debts);
+  }
+
   Future<double> totalDeductions({
     required String workerId,
     required DateTime start,

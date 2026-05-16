@@ -9,7 +9,7 @@ import '../../shared/ui/live_list_view.dart';
 import 'widgets/add_worker_sheet.dart';
 import 'widgets/delete_worker_dialog.dart';
 import 'widgets/worker_tile.dart';
-import 'worker_detail_sheet.dart';
+import 'worker_detail_page.dart';
 
 final workersProvider = StreamProvider<List<Worker>>((ref) {
   return ref.watch(workerRepositoryProvider).watchActiveWorkers();
@@ -55,11 +55,10 @@ class WorkersPage extends ConsumerWidget {
   }
 
   void _showWorkerDetail(BuildContext context, Worker worker) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => WorkerDetailSheet(worker: worker),
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => WorkerDetailPage(worker: worker),
+      ),
     );
   }
 }

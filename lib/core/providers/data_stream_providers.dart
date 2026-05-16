@@ -2,7 +2,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/app_database.dart';
 import '../../data/local/repositories.dart';
+import '../../shared/month_utils.dart';
 import 'repository_providers.dart';
+
+class WorkerLifetimeStats {
+  const WorkerLifetimeStats({
+    required this.workedDayEquivalent,
+    required this.totalAdvances,
+    required this.totalDebts,
+    required this.totalPaid,
+  });
+
+  final double workedDayEquivalent;
+  final double totalAdvances;
+  final double totalDebts;
+  final double totalPaid;
+}
 
 final siteReportProvider =
     FutureProvider.autoDispose.family<SiteReportData, String>((ref, siteId) {
@@ -28,6 +43,44 @@ final workerAdvanceDebtsProvider =
       workerId,
     ) {
       return ref.watch(advanceDebtRepositoryProvider).watchByWorker(workerId);
+    });
+
+final workerLifetimeStatsProvider =
+    FutureProvider.autoDispose.family<WorkerLifetimeStats, String>((
+      ref,
+      workerId,
+    ) async {
+      final attendance = ref.watch(attendanceRepositoryProvider);
+      final advanceDebt = ref.watch(advanceDebtRepositoryProvider);
+      final payment = ref.watch(paymentRepositoryProvider);
+
+      final results = await Future.wait([
+        attendance.totalWorkedDayEquivalent(workerId),
+        advanceDebt.lifetimeTotals(workerId),
+        payment.totalPaid(workerId),
+      ]);
+      final worked = results[0] as double;
+      final totals = results[1] as ({double advances, double debts});
+      final paid = results[2] as double;
+
+      return WorkerLifetimeStats(
+        workedDayEquivalent: worked,
+        totalAdvances: totals.advances,
+        totalDebts: totals.debts,
+        totalPaid: paid,
+      );
+    });
+
+final workerMonthAttendanceProvider = StreamProvider.autoDispose
+    .family<List<AttendanceEntry>, ({String workerId, DateTime month})>((
+      ref,
+      args,
+    ) {
+      final start = monthStart(args.month);
+      final end = monthEnd(args.month);
+      return ref
+          .watch(attendanceRepositoryProvider)
+          .watchWorkerEntriesInRange(workerId: args.workerId, start: start, end: end);
     });
 
 final workerPayrollProvider =

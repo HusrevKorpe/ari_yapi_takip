@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../shared/attendance_status.dart';
 import '../../../shared/month_utils.dart';
+import '../../../shared/payroll_calculator.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
@@ -218,6 +219,22 @@ class AttendanceRepository {
     return query.get();
   }
 
+  Stream<List<AttendanceEntry>> watchWorkerEntriesInRange({
+    required String workerId,
+    required DateTime start,
+    required DateTime end,
+  }) {
+    final query = _db.select(_db.attendanceEntries)
+      ..where(
+        (a) =>
+            a.workerId.equals(workerId) &
+            a.workDate.isBetweenValues(start, end) &
+            a.deletedAt.isNull(),
+      )
+      ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
+    return query.watch();
+  }
+
   Stream<List<AttendanceEntry>> watchAllEntriesInRange({
     required DateTime start,
     required DateTime end,
@@ -230,6 +247,17 @@ class AttendanceRepository {
       )
       ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
     return query.watch();
+  }
+
+  Future<double> totalWorkedDayEquivalent(String workerId) async {
+    final entries = await (_db.select(_db.attendanceEntries)
+          ..where(
+            (a) => a.workerId.equals(workerId) & a.deletedAt.isNull(),
+          ))
+        .get();
+    return PayrollCalculator.workedEquivalent(
+      entries.map((e) => AttendanceStatusX.fromCode(e.status)),
+    );
   }
 
   Future<DateTime?> earliestDateForWorker(
