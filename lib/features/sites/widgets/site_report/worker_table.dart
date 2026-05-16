@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../data/local/repositories.dart';
 import '../../../../shared/formatters.dart';
+import '../../../payroll/widgets/payroll_shared.dart';
 
 class WorkerTable extends StatelessWidget {
   const WorkerTable({
@@ -161,7 +162,7 @@ class _WorkerRow extends StatelessWidget {
                   ),
                 ),
                 const Text(
-                  'gun',
+                  'gün',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 10,
@@ -212,9 +213,5 @@ class _WorkerRow extends StatelessWidget {
     );
   }
 
-  String _buildDayLabel() {
-    if (row.halfDays == 0) return '${row.fullDays}';
-    if (row.fullDays == 0) return '${row.halfDays}×½';
-    return '${row.fullDays}+${row.halfDays}×½';
-  }
+  String _buildDayLabel() => formatWorkedDays(row.dayEquivalent);
 }

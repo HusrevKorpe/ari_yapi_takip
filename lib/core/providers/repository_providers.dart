@@ -21,6 +21,14 @@ final siteRepositoryProvider = Provider<SiteRepository>((ref) {
   );
 });
 
+final siteNoteRepositoryProvider = Provider<SiteNoteRepository>((ref) {
+  return SiteNoteRepository(
+    ref.watch(databaseProvider),
+    ref.watch(uuidProvider),
+    ref.watch(syncContextProvider),
+  );
+});
+
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   return AttendanceRepository(
     ref.watch(databaseProvider),

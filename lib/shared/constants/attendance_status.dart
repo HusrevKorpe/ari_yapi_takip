@@ -17,13 +17,13 @@ extension AttendanceStatusX on AttendanceStatus {
   String get label {
     switch (this) {
       case AttendanceStatus.worked:
-        return 'Calisti';
+        return 'Geldi';
       case AttendanceStatus.halfDay:
-        return 'Yarim Gun';
+        return 'Yarım Gün';
       case AttendanceStatus.absent:
         return 'Gelmedi';
       case AttendanceStatus.leave:
-        return 'Izinli';
+        return 'İzinli';
     }
   }
 

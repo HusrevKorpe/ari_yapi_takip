@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/local/app_database.dart';
 import '../../data/local/repositories.dart';
 import '../../data/remote/firebase_remote_data_source.dart';
 import '../../data/sync/bootstrap_service.dart';
@@ -20,27 +19,8 @@ final failedPermanentCountProvider = StreamProvider<int>((ref) {
 });
 
 /// Henüz Firebase'e gönderilmemiş (pending) yerel değişiklik sayısı.
-/// LiveList bu sayaçı kullanarak kullanıcı kaynaklı değişiklikleri uzaktan
-/// gelen değişikliklerden ayırır: pending > 0 iken veri değişimi "yerel"
-/// kabul edilip snapshot otomatik güncellenir, aksi halde banner gösterilir.
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
   return ref.watch(syncQueueRepositoryProvider).pendingCount();
-});
-
-/// Kullanıcının çakışma listesine en son baktığı tarihten bu yana üretilen
-/// sync conflict audit kayıt sayısı. RootShell banner'ı bu sayaçı izler.
-final unseenConflictCountProvider = StreamProvider<int>((ref) {
-  final db = ref.watch(databaseProvider);
-  final prefs = ref.watch(localPreferencesProvider);
-  return db.unseenConflictCount(prefs.conflictsSeenAt());
-});
-
-/// Son çakışma audit kayıtlarını döndüren snapshot — banner detay diyaloğunda
-/// kullanılır.
-final recentSyncConflictsProvider =
-    FutureProvider.autoDispose<List<AuditLog>>((ref) {
-  ref.watch(unseenConflictCountProvider);
-  return ref.watch(databaseProvider).recentConflicts();
 });
 
 final remoteDataSourceProvider = Provider<RemoteDataSource>((ref) {

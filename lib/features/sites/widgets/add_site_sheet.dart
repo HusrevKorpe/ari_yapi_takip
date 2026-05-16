@@ -89,7 +89,7 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Yeni Santiye',
+                      'Yeni Şantiye',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -98,7 +98,7 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Santiye ya da ilceyi temiz bir kartla ekleyin.',
+                      'Şantiye ya da ilçeyi temiz bir kartla ekleyin.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: const Color(0xFF5E706A),
                         height: 1.35,
@@ -109,7 +109,7 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                       controller: nameController,
                       textCapitalization: TextCapitalization.words,
                       decoration: _inputDecoration(
-                        label: 'Ilce / Santiye Adi',
+                        label: 'İlçe / Şantiye Adı',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -117,8 +117,8 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                       controller: codeController,
                       textCapitalization: TextCapitalization.characters,
                       decoration: _inputDecoration(
-                        label: 'Kisaltma (Opsiyonel)',
-                        hint: 'orn: KCB',
+                        label: 'Kısaltma (Opsiyonel)',
+                        hint: 'örn: KCB',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -128,8 +128,8 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                         decimal: true,
                       ),
                       decoration: _inputDecoration(
-                        label: 'Gunluk Prim (TL)',
-                        hint: 'Merkez icin bos birakin',
+                        label: 'Günlük Prim (TL)',
+                        hint: 'Merkez için boş bırakın',
                       ),
                     ),
                     const SizedBox(height: 18),

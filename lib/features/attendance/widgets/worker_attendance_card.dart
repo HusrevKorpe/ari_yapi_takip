@@ -1,164 +1,120 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/attendance_status.dart';
 
-class WorkerAttendanceCard extends StatelessWidget {
+/// Bir çalışan için günlük yoklama kartı: durum seçimi (Geldi / Yarım Gün /
+/// Gelmedi), 1. şantiye ve isteğe bağlı 2. şantiye.
+class WorkerAttendanceCard extends StatefulWidget {
   const WorkerAttendanceCard({
     super.key,
     required this.worker,
     required this.selectedStatus,
     required this.selectedSiteId,
+    required this.selectedSecondSiteId,
     required this.sites,
     required this.onStatusChanged,
     required this.onSiteChanged,
+    required this.onSecondSiteChanged,
   });
 
   final Worker worker;
   final AttendanceStatus? selectedStatus;
   final String? selectedSiteId;
+  final String? selectedSecondSiteId;
   final List<Site> sites;
-  final ValueChanged<AttendanceStatus> onStatusChanged;
+  final ValueChanged<AttendanceStatus?> onStatusChanged;
   final ValueChanged<String?> onSiteChanged;
+  final ValueChanged<String?> onSecondSiteChanged;
+
+  @override
+  State<WorkerAttendanceCard> createState() => _WorkerAttendanceCardState();
+}
+
+class _WorkerAttendanceCardState extends State<WorkerAttendanceCard> {
+  bool _secondSiteExpanded = false;
 
   @override
   Widget build(BuildContext context) {
-    final presentSelected = selectedStatus == AttendanceStatus.worked;
-    final absentSelected = selectedStatus == AttendanceStatus.absent;
-    final halfDaySelected = selectedStatus == AttendanceStatus.halfDay;
-    final showSites = (presentSelected || halfDaySelected) && sites.isNotEmpty;
+    final status = widget.selectedStatus;
+    final isWorked = status == AttendanceStatus.worked;
+    final isHalfDay = status == AttendanceStatus.halfDay;
+    final isAbsent = status == AttendanceStatus.absent;
+    final isUnset = status == null;
 
-    final accent = presentSelected
-        ? const Color(0xFF0C8A7A)
-        : absentSelected
-        ? const Color(0xFFC62828)
-        : halfDaySelected
-        ? const Color(0xFFE67E00)
-        : const Color(0xFF8D8D8D);
+    final showSiteRow =
+        (isWorked || isHalfDay) && widget.sites.isNotEmpty;
+    final canAddSecondSite = isWorked &&
+        widget.selectedSiteId != null &&
+        widget.sites.length > 1;
+    final hasSecondSite = widget.selectedSecondSiteId != null;
+    final showSecondSiteRow =
+        canAddSecondSite && (_secondSiteExpanded || hasSecondSite);
 
-    final subtitle = (worker.notes ?? '').trim().isEmpty
-        ? 'CALISAN'
-        : worker.notes!.trim().toUpperCase();
+    final accent = _accentFor(status);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border(left: BorderSide(color: accent, width: 2.8)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x11000000),
-            blurRadius: 6,
-            offset: Offset(0, 1),
-          ),
-        ],
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isUnset ? AppColors.border : accent.withValues(alpha: 0.35),
+        ),
+        boxShadow: AppShadows.card,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8E8E8),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _initials(worker.fullName),
-                    style: const TextStyle(
-                      color: Color(0xFF6F6F6F),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        worker.fullName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          height: 1.05,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF7A7A7A),
-                          letterSpacing: 1.0,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            _Header(
+              name: widget.worker.fullName,
+              initials: _initials(widget.worker.fullName),
+              statusLabel: status?.label,
+              accent: accent,
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _StatusButton(
-                    label: 'GELDI',
-                    selected: presentSelected,
-                    selectedColor: const Color(0xFF4CAF50),
-                    onTap: () => onStatusChanged(AttendanceStatus.worked),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _StatusButton(
-                    label: 'YARIM GUN',
-                    selected: halfDaySelected,
-                    selectedColor: const Color(0xFFE67E00),
-                    selectedTextColor: Colors.white,
-                    onTap: () => onStatusChanged(AttendanceStatus.halfDay),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _StatusButton(
-                    label: 'GELMEDI',
-                    selected: absentSelected,
-                    selectedColor: const Color(0xFFC62828),
-                    selectedTextColor: Colors.white,
-                    onTap: () => onStatusChanged(AttendanceStatus.absent),
-                  ),
-                ),
-              ],
+            const SizedBox(height: AppSpacing.md),
+            _StatusSegment(
+              isWorked: isWorked,
+              isHalfDay: isHalfDay,
+              isAbsent: isAbsent,
+              onChanged: widget.onStatusChanged,
             ),
-            if (showSites) ...[
-              const SizedBox(height: 6),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: sites.map((site) {
-                    final isSelected = selectedSiteId == site.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _SiteChip(
-                        label: site.name,
-                        selected: isSelected,
-                        onTap: () => onSiteChanged(isSelected ? null : site.id),
-                      ),
-                    );
-                  }).toList(),
+            if (showSiteRow) ...[
+              const SizedBox(height: AppSpacing.md),
+              _SiteSection(
+                label: showSecondSiteRow ? '1. ŞANTİYE' : 'ŞANTİYE',
+                sites: widget.sites,
+                selectedSiteId: widget.selectedSiteId,
+                onSelected: widget.onSiteChanged,
+              ),
+            ],
+            if (canAddSecondSite && !showSecondSiteRow) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _AddSecondSiteButton(
+                onTap: () => setState(() => _secondSiteExpanded = true),
+              ),
+            ],
+            if (showSecondSiteRow) ...[
+              const SizedBox(height: AppSpacing.md),
+              _SiteSection(
+                label: '2. ŞANTİYE',
+                sites: widget.sites
+                    .where((s) => s.id != widget.selectedSiteId)
+                    .toList(),
+                selectedSiteId: widget.selectedSecondSiteId,
+                onSelected: widget.onSecondSiteChanged,
+                trailing: _RemoveSecondSiteButton(
+                  onTap: () {
+                    widget.onSecondSiteChanged(null);
+                    setState(() => _secondSiteExpanded = false);
+                  },
                 ),
               ),
             ],
@@ -169,14 +125,252 @@ class WorkerAttendanceCard extends StatelessWidget {
   }
 
   String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '--';
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
     if (parts.length == 1) {
-      return parts.first
-          .substring(0, parts.first.length >= 2 ? 2 : 1)
-          .toUpperCase();
+      return parts.first.characters.first.toUpperCase();
     }
-    return (parts.first[0] + parts.last[0]).toUpperCase();
+    return '${parts.first.characters.first}${parts.last.characters.first}'
+        .toUpperCase();
+  }
+}
+
+Color _accentFor(AttendanceStatus? status) {
+  switch (status) {
+    case AttendanceStatus.worked:
+      return AppColors.success;
+    case AttendanceStatus.halfDay:
+      return AppColors.warning;
+    case AttendanceStatus.absent:
+      return AppColors.danger;
+    case AttendanceStatus.leave:
+      return AppColors.info;
+    case null:
+      return AppColors.textTertiary;
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.name,
+    required this.initials,
+    required this.statusLabel,
+    required this.accent,
+  });
+
+  final String name;
+  final String initials;
+  final String? statusLabel;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Text(
+            initials,
+            style: AppTextStyles.cardSubtitle.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.cardTitle,
+          ),
+        ),
+        if (statusLabel != null) ...[
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Text(
+              statusLabel!,
+              style: AppTextStyles.chip.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StatusSegment extends StatelessWidget {
+  const _StatusSegment({
+    required this.isWorked,
+    required this.isHalfDay,
+    required this.isAbsent,
+    required this.onChanged,
+  });
+
+  final bool isWorked;
+  final bool isHalfDay;
+  final bool isAbsent;
+  final ValueChanged<AttendanceStatus?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StatusButton(
+            label: 'Geldi',
+            icon: Icons.check_circle_rounded,
+            selected: isWorked,
+            selectedColor: AppColors.success,
+            onTap: () =>
+                onChanged(isWorked ? null : AttendanceStatus.worked),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _StatusButton(
+            label: 'Yarım',
+            icon: Icons.contrast_rounded,
+            selected: isHalfDay,
+            selectedColor: AppColors.warning,
+            onTap: () =>
+                onChanged(isHalfDay ? null : AttendanceStatus.halfDay),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _StatusButton(
+            label: 'Gelmedi',
+            icon: Icons.cancel_rounded,
+            selected: isAbsent,
+            selectedColor: AppColors.danger,
+            onTap: () =>
+                onChanged(isAbsent ? null : AttendanceStatus.absent),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusButton extends StatelessWidget {
+  const _StatusButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final Color selectedColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = selected ? selectedColor : AppColors.surfaceMuted;
+    final fg = selected ? Colors.white : AppColors.textSecondary;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTextStyles.buttonSmall.copyWith(color: fg),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SiteSection extends StatelessWidget {
+  const _SiteSection({
+    required this.label,
+    required this.sites,
+    required this.selectedSiteId,
+    required this.onSelected,
+    this.trailing,
+  });
+
+  final String label;
+  final List<Site> sites;
+  final String? selectedSiteId;
+  final ValueChanged<String?> onSelected;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: AppTextStyles.sectionLabel.copyWith(
+                  color: AppColors.textTertiary,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final site in sites)
+              _SiteChip(
+                label: site.name,
+                selected: selectedSiteId == site.id,
+                onTap: () => onSelected(
+                  selectedSiteId == site.id ? null : site.id,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -193,21 +387,23 @@ class _SiteChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1A6B5A) : const Color(0xFFEEEEEE),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : const Color(0xFF666666),
-            letterSpacing: 0.3,
+    final bg = selected ? AppColors.brand : AppColors.surfaceMuted;
+    final fg = selected ? Colors.white : AppColors.textPrimary;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 7,
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.chip.copyWith(color: fg),
           ),
         ),
       ),
@@ -215,48 +411,59 @@ class _SiteChip extends StatelessWidget {
   }
 }
 
-class _StatusButton extends StatelessWidget {
-  const _StatusButton({
-    required this.label,
-    required this.selected,
-    required this.selectedColor,
-    required this.onTap,
-    this.selectedTextColor,
-  });
+class _AddSecondSiteButton extends StatelessWidget {
+  const _AddSecondSiteButton({required this.onTap});
 
-  final String label;
-  final bool selected;
-  final Color selectedColor;
-  final Color? selectedTextColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final background = selected ? selectedColor : const Color(0xFFE7E7E7);
-    final textColor = selected
-        ? (selectedTextColor ?? const Color(0xFF444444))
-        : const Color(0xFF767676);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(2),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
-        height: 36,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
-          ),
+        decoration: BoxDecoration(
+          color: AppColors.brandSurface,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_rounded, size: 16, color: AppColors.brand),
+            const SizedBox(width: 6),
+            Text(
+              '2. şantiye ekle',
+              style: AppTextStyles.buttonSmall.copyWith(
+                color: AppColors.brand,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _RemoveSecondSiteButton extends StatelessWidget {
+  const _RemoveSecondSiteButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      icon: const Icon(Icons.close_rounded, size: 16),
+      tooltip: '2. şantiyeyi kaldır',
+      color: AppColors.textTertiary,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
     );
   }
 }

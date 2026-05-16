@@ -15,7 +15,9 @@ class SiteReportRepository {
         .getSingle();
 
     final entries = await (_db.select(_db.attendanceEntries)
-          ..where((a) => a.siteId.equals(siteId) & a.deletedAt.isNull())
+          ..where((a) =>
+              (a.siteId.equals(siteId) | a.secondSiteId.equals(siteId)) &
+              a.deletedAt.isNull())
           ..orderBy([(a) => OrderingTerm(expression: a.workDate)]))
         .get();
 
@@ -42,10 +44,17 @@ class SiteReportRepository {
       int halfDays = 0;
       for (final e in workerEntries) {
         final status = AttendanceStatusX.fromCode(e.status);
+        final hasSecond = status == AttendanceStatus.worked &&
+            e.secondSiteId != null &&
+            e.secondSiteId != e.siteId;
         if (status == AttendanceStatus.worked) {
-          fullDays++;
+          if (hasSecond) {
+            halfDays++;
+          } else {
+            fullDays++;
+          }
         } else if (status == AttendanceStatus.halfDay) {
-          halfDays++;
+          if (e.siteId == siteId) halfDays++;
         }
       }
       final dayEquivalent = fullDays + halfDays * 0.5;

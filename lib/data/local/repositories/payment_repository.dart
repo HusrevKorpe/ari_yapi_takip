@@ -150,7 +150,7 @@ class PaymentRepository {
         id: _uuid.v4(),
         entityType: 'payroll_payment',
         entityId: paymentId,
-        message: 'Odeme iptal edildi',
+        message: 'Ödeme iptal edildi',
       );
     });
   }

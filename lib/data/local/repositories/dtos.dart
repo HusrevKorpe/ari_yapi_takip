@@ -6,12 +6,14 @@ class AttendanceInput {
     required this.workerId,
     required this.status,
     this.siteId,
+    this.secondSiteId,
     this.note,
   });
 
   final String workerId;
   final AttendanceStatus status;
   final String? siteId;
+  final String? secondSiteId;
   final String? note;
 }
 

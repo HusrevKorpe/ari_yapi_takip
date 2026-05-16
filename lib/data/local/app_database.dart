@@ -43,6 +43,8 @@ class Workers extends Table with SyncMeta {
   TextColumn get defaultSiteId => text().nullable()();
   TextColumn get payFrequency => text().withDefault(const Constant('weekly'))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get receivesBonus =>
+      boolean().withDefault(const Constant(true))();
   TextColumn get notes => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -70,6 +72,7 @@ class AttendanceEntries extends Table with SyncMeta {
   DateTimeColumn get workDate => dateTime()();
   TextColumn get status => text()();
   TextColumn get siteId => text().nullable()();
+  TextColumn get secondSiteId => text().nullable()();
   TextColumn get note => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -180,6 +183,18 @@ class SyncQueueItems extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class SiteNotes extends Table with SyncMeta {
+  TextColumn get id => text()();
+  TextColumn get siteId => text()();
+  DateTimeColumn get noteDate => dateTime()();
+  TextColumn get content => text()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class AuditLogs extends Table {
   TextColumn get id => text()();
   TextColumn get entityType => text()();
@@ -206,6 +221,7 @@ class AuditLogs extends Table {
     AdvanceDebts,
     PayrollPayments,
     PayrollSnapshots,
+    SiteNotes,
     SyncQueueItems,
     AuditLogs,
   ],
@@ -214,7 +230,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration {
@@ -279,6 +295,32 @@ class AppDatabase extends _$AppDatabase {
             'payroll_payments_unique_active_period '
             'ON payroll_payments(worker_id, period_start, period_end) '
             'WHERE deleted_at IS NULL;',
+          );
+        });
+        await _runStep('v10: workers.receives_bonus + site_notes', from < 10,
+            () async {
+          await _safeAddColumn(m, workers, workers.receivesBonus);
+          try {
+            await m.createTable(siteNotes);
+          } catch (e) {
+            if (!e.toString().contains('already exists')) rethrow;
+          }
+        });
+        // v10'u eski 'false' default'uyla çalıştıran kurulumlarda mevcut
+        // calisanlarin primAliyor değerini true'ya çek. Yeni kayıtlar zaten
+        // kolonun true default'unu alır.
+        await _runStep('v11: workers.receives_bonus backfill true', from < 11,
+            () async {
+          await customStatement(
+            'UPDATE workers SET receives_bonus = 1 WHERE receives_bonus = 0;',
+          );
+        });
+        await _runStep(
+            'v12: attendance_entries.second_site_id', from < 12, () async {
+          await _safeAddColumn(
+            m,
+            attendanceEntries,
+            attendanceEntries.secondSiteId,
           );
         });
       },
@@ -539,47 +581,6 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  /// Pull tarafında tespit edilen çakışmaları (uzak yerelin üzerine yazıldı,
-  /// uzaktaki değişiklik bekleyen yerel kayıt nedeniyle atlandı, vs.) kalıcı
-  /// olarak audit_logs içine yazar. Ayrı tablo açmak yerine type prefix'i ile
-  /// işaretliyoruz; UI bu kayıtları stream üzerinden listeleyip kullanıcıya
-  /// gösteriyor.
-  Future<void> addSyncConflict({
-    required String id,
-    required String kind, // 'overwritten' | 'pending_skipped' | 'remote_stale'
-    required String entityType,
-    required String entityId,
-    required String message,
-  }) {
-    return into(auditLogs).insert(
-      AuditLogsCompanion.insert(
-        id: id,
-        entityType: 'sync_conflict_${kind}_$entityType',
-        entityId: entityId,
-        message: message,
-      ),
-    );
-  }
-
-  Stream<int> unseenConflictCount(DateTime since) {
-    final countExp = auditLogs.id.count();
-    final query = selectOnly(auditLogs)
-      ..addColumns([countExp])
-      ..where(
-        auditLogs.entityType.like('sync_conflict_%') &
-            auditLogs.createdAt.isBiggerThanValue(since),
-      );
-    return query.watchSingle().map((row) => row.read(countExp) ?? 0);
-  }
-
-  Future<List<AuditLog>> recentConflicts({int limit = 50}) {
-    final query = select(auditLogs)
-      ..where((a) => a.entityType.like('sync_conflict_%'))
-      ..orderBy([(a) => OrderingTerm.desc(a.createdAt)])
-      ..limit(limit);
-    return query.get();
-  }
-
   Future<void> clearTenantScopedData() async {
     await transaction(() async {
       await delete(syncQueueItems).go();
@@ -590,6 +591,7 @@ class AppDatabase extends _$AppDatabase {
       await delete(incomes).go();
       await delete(expenses).go();
       await delete(attendanceEntries).go();
+      await delete(siteNotes).go();
       await delete(sites).go();
       await delete(workers).go();
     });

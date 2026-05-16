@@ -39,13 +39,6 @@ class AttendanceRepository {
 
     await _db.transaction(() async {
       for (final entry in entries) {
-        if (entry.status.requiresSite &&
-            (entry.siteId == null || entry.siteId!.isEmpty)) {
-          throw ArgumentError(
-            'Calisti ve Yarim Gun durumunda santiye secimi zorunludur.',
-          );
-        }
-
         final nextVersion = (existingVersions[entry.workerId] ?? 0) + 1;
         final id = _uuid.v4();
         await _db.into(_db.attendanceEntries).insert(
@@ -55,6 +48,7 @@ class AttendanceRepository {
             workDate: normalized,
             status: entry.status.code,
             siteId: Value(entry.siteId),
+            secondSiteId: Value(entry.secondSiteId),
             note: Value(entry.note),
             updatedAt: Value(now),
             lastModifiedBy: Value(_ctx.userId),
@@ -65,6 +59,7 @@ class AttendanceRepository {
             (_) => AttendanceEntriesCompanion(
               status: Value(entry.status.code),
               siteId: Value(entry.siteId),
+              secondSiteId: Value(entry.secondSiteId),
               note: Value(entry.note),
               updatedAt: Value(now),
               lastModifiedBy: Value(_ctx.userId),
@@ -106,6 +101,63 @@ class AttendanceRepository {
     });
   }
 
+  Future<void> deleteEntriesForWorkers({
+    required DateTime date,
+    required List<String> workerIds,
+  }) async {
+    if (workerIds.isEmpty) return;
+    final normalized = normalizeDay(date);
+    final now = DateTime.now();
+
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.attendanceEntries)
+            ..where(
+              (a) =>
+                  a.workDate.equals(normalized) &
+                  a.workerId.isIn(workerIds) &
+                  a.deletedAt.isNull(),
+            ))
+          .get();
+
+      for (final entry in existing) {
+        final nextVersion = entry.syncVersion + 1;
+        await (_db.update(_db.attendanceEntries)
+              ..where((a) => a.id.equals(entry.id)))
+            .write(AttendanceEntriesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModifiedBy: Value(_ctx.userId),
+          deviceId: Value(_ctx.deviceId),
+          syncVersion: Value(nextVersion),
+        ));
+
+        await _db.upsertQueueItem(
+          id: _uuid.v4(),
+          entityType: 'attendance',
+          entityId: entry.id,
+          action: 'delete',
+          payload: {
+            'id': entry.id,
+            'deletedAt': now.toIso8601String(),
+            'lastModifiedBy': _ctx.userId,
+            'deviceId': _ctx.deviceId,
+            'syncVersion': nextVersion,
+          },
+          organizationId: _ctx.organizationId,
+        );
+      }
+
+      if (existing.isNotEmpty) {
+        await _db.addAudit(
+          id: _uuid.v4(),
+          entityType: 'attendance',
+          entityId: normalized.toIso8601String(),
+          message: '${existing.length} adet yoklama kaydi silindi',
+        );
+      }
+    });
+  }
+
   Future<double> rangeLocationBonus({
     required String workerId,
     required DateTime start,
@@ -122,11 +174,12 @@ class AttendanceRepository {
 
     if (entries.isEmpty) return 0;
 
-    final siteIds = entries
-        .where((e) => e.siteId != null)
-        .map((e) => e.siteId!)
-        .toSet()
-        .toList();
+    final siteIds = <String>{
+      for (final e in entries) ...[
+        if (e.siteId != null) e.siteId!,
+        if (e.secondSiteId != null) e.secondSiteId!,
+      ],
+    }.toList();
 
     if (siteIds.isEmpty) return 0;
 

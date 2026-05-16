@@ -98,7 +98,7 @@ class WorkerDetailSheet extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Gunluk: ${formatMoney(worker.dailyWage)}',
+                'Günlük: ${formatMoney(worker.dailyWage)}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -454,7 +454,7 @@ class WorkerDetailSheet extends ConsumerWidget {
                         ),
                         onPressed: () => Navigator.pop(dialogContext),
                         child: const Text(
-                          'Iptal',
+                          'İptal',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -507,7 +507,7 @@ class WorkerDetailSheet extends ConsumerWidget {
                                 context,
                                 type == 'advance'
                                     ? 'Avans kaydedildi'
-                                    : 'Borc kaydedildi',
+                                    : 'Borç kaydedildi',
                               );
                             }
                           },

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/formatters.dart';
-
-const _surfaceBg = Color(0xFFF4F4F5);
 
 class ExpenseRowCard extends StatelessWidget {
   const ExpenseRowCard({
@@ -20,63 +19,69 @@ class ExpenseRowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: _surfaceBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: accent, width: 6)),
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                expense.category.toUpperCase(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF171717),
-                  height: 1.35,
-                ),
-              ),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            const SizedBox(width: 18),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Icon(
+              Icons.receipt_long_rounded,
+              size: 18,
+              color: accent,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  formatMoney(expense.amount).replaceFirst('₺', ''),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF131313),
-                  ),
+                  expense.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.cardTitle.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   formatDate(expense.expenseDate),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B6B6B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTextStyles.caption,
                 ),
               ],
             ),
-            const SizedBox(width: 12),
-            IconButton(
-              onPressed: onDelete,
-              tooltip: 'Gideri sil',
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.delete_outline, color: Color(0xFFC62828)),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            formatMoney(expense.amount),
+            style: AppTextStyles.bodyStrong.copyWith(
+              fontSize: 16,
+              color: accent,
             ),
-          ],
-        ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            tooltip: 'Gideri sil',
+            icon: const Icon(Icons.delete_outline_rounded, size: 20),
+            color: AppColors.textTertiary,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       ),
     );
   }

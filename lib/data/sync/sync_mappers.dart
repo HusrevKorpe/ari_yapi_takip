@@ -8,6 +8,7 @@ extension WorkerSyncExt on Worker {
     'varsayilanSantiyeId': defaultSiteId,
     'odemePeriyodu': payFrequency,
     'aktifMi': isActive,
+    'primAliyor': receivesBonus,
     'notlar': notes,
     'olusturulmaTarihi': createdAt.toIso8601String(),
     'guncellenmeTarihi': updatedAt.toIso8601String(),
@@ -41,6 +42,7 @@ extension AttendanceEntrySyncExt on AttendanceEntry {
     'tarih': workDate.toIso8601String(),
     'durum': status,
     'santiyeId': siteId,
+    'ikinciSantiyeId': secondSiteId,
     'not': note,
     'olusturulmaTarihi': createdAt.toIso8601String(),
     'guncellenmeTarihi': updatedAt.toIso8601String(),
@@ -111,6 +113,21 @@ extension PayrollPaymentSyncExt on PayrollPayment {
     'donemBitisi': periodEnd.toIso8601String(),
     'tutar': amount,
     'odemeTarihi': paidAt.toIso8601String(),
+    'olusturulmaTarihi': createdAt.toIso8601String(),
+    'guncellenmeTarihi': updatedAt.toIso8601String(),
+    'silinmeTarihi': deletedAt?.toIso8601String(),
+    'sonDegistiren': lastModifiedBy,
+    'cihazId': deviceId,
+    'senkronSurumu': syncVersion,
+  };
+}
+
+extension SiteNoteSyncExt on SiteNote {
+  Map<String, dynamic> toSyncMap() => {
+    'id': id,
+    'santiyeId': siteId,
+    'notTarihi': noteDate.toIso8601String(),
+    'icerik': content,
     'olusturulmaTarihi': createdAt.toIso8601String(),
     'guncellenmeTarihi': updatedAt.toIso8601String(),
     'silinmeTarihi': deletedAt?.toIso8601String(),

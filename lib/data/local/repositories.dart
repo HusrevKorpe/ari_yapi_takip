@@ -5,6 +5,7 @@ export 'repositories/expense_repository.dart';
 export 'repositories/income_repository.dart';
 export 'repositories/payment_repository.dart';
 export 'repositories/payroll_repository.dart';
+export 'repositories/site_note_repository.dart';
 export 'repositories/site_report_repository.dart';
 export 'repositories/site_repository.dart';
 export 'repositories/sync_queue_repository.dart';

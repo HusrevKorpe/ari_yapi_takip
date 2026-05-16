@@ -9,4 +9,5 @@ const kEntityCollections = <String, String>{
   'advance_debt': 'avans_borclar',
   'payroll_payment': 'maas_odemeleri',
   'payroll_snapshot': 'maas_ozetleri',
+  'site_note': 'santiye_notlari',
 };

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../data/local/app_database.dart';
-import '../../shared/ui/live_list.dart';
+import '../../shared/ui/app_bar_add_button.dart';
+import '../../shared/ui/empty_state_view.dart';
+import '../../shared/ui/live_list_view.dart';
 import 'widgets/add_worker_sheet.dart';
 import 'widgets/delete_worker_dialog.dart';
 import 'widgets/worker_tile.dart';
@@ -12,9 +14,6 @@ import 'worker_detail_sheet.dart';
 final workersProvider = StreamProvider<List<Worker>>((ref) {
   return ref.watch(workerRepositoryProvider).watchActiveWorkers();
 });
-
-const _accentGold = Color(0xFFD6B100);
-const _accentGoldDark = Color(0xFF8A7300);
 
 class WorkersPage extends ConsumerWidget {
   const WorkersPage({super.key});
@@ -25,124 +24,32 @@ class WorkersPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 16,
-        title: const Row(
-          children: [
-            Text(
-              'Calisan Yonetimi',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF161616),
-              ),
-            ),
-            SizedBox(width: 10),
-            Icon(Icons.groups_2_rounded, color: _accentGoldDark, size: 26),
-          ],
-        ),
+        title: const Text('Çalışanlar'),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [_accentGoldDark, _accentGold],
-                ),
-              ),
-              child: FilledButton.icon(
-                onPressed: () => showAddWorkerSheet(context, ref),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: const Color(0xFF171717),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Ekle',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
+          AppBarAddButton(
+            onPressed: () => showAddWorkerSheet(context, ref),
           ),
         ],
       ),
-      body: LiveList<Worker>(
+      body: LiveListView<Worker>(
         async: workers,
         idOf: (w) => w.id,
-        builder: (context, items, onRefresh) {
-          return SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 10, 16, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'YONETIM PANELI',
-                        style: TextStyle(
-                          color: _accentGoldDark,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: onRefresh,
-                    child: items.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 120),
-                              Center(
-                                child: Text('Henuz calisan eklenmedi.'),
-                              ),
-                            ],
-                          )
-                        : ListView.separated(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 8, 16, 120),
-                            itemCount: items.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final worker = items[index];
-                              return WorkerTile(
-                                worker: worker,
-                                onTap: () =>
-                                    _showWorkerDetail(context, worker),
-                                onEdit: () => showAddWorkerSheet(
-                                  context,
-                                  ref,
-                                  existing: worker,
-                                ),
-                                onDelete: () =>
-                                    confirmDeleteWorker(context, ref, worker),
-                              );
-                            },
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+        emptyState: const EmptyStateView(
+          icon: Icons.groups_2_rounded,
+          title: 'Henüz çalışan eklenmedi',
+          message:
+              'Sağ üstteki "Ekle" butonuna dokunarak yeni çalışan ekleyebilirsiniz.',
+        ),
+        itemBuilder: (context, worker) => WorkerTile(
+          worker: worker,
+          onTap: () => _showWorkerDetail(context, worker),
+          onEdit: () => showAddWorkerSheet(
+            context,
+            ref,
+            existing: worker,
+          ),
+          onDelete: () => confirmDeleteWorker(context, ref, worker),
+        ),
       ),
     );
   }
@@ -156,3 +63,4 @@ class WorkersPage extends ConsumerWidget {
     );
   }
 }
+

@@ -5,6 +5,7 @@ import '../../core/providers.dart';
 import '../../data/local/app_database.dart';
 import '../../shared/month_utils.dart';
 import '../../shared/ui/live_list.dart';
+import '../../app/design_tokens.dart';
 import 'attendance_page.dart';
 import 'widgets/grid_body.dart';
 import 'widgets/grid_legend.dart';
@@ -51,12 +52,9 @@ class _AttendanceGridPageState extends ConsumerState<AttendanceGridPage> {
     final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7F9),
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Yoklama Cizelgesi'),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('Yoklama Çizelgesi'),
       ),
       body: Column(
         children: [
@@ -71,7 +69,7 @@ class _AttendanceGridPageState extends ConsumerState<AttendanceGridPage> {
                 if (workers.isEmpty) {
                   return const Center(
                     child: Text(
-                      'Calisan bulunamadi.',
+                      'Çalışan bulunamadı.',
                       style: TextStyle(
                         color: Color(0xFF999999),
                         fontSize: 14,

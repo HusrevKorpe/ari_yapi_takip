@@ -104,7 +104,7 @@ class _AriSplashPageState extends State<AriSplashPage> {
                     ),
                     const SizedBox(height: 28),
                     const Text(
-                      'Ari Yapi Yonetim',
+                      'Arı Yapı Yönetim',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white,
@@ -115,7 +115,7 @@ class _AriSplashPageState extends State<AriSplashPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Santiye, personel ve gider takibini tek ekranda yonetin.',
+                      'Şantiye, personel ve gider takibini tek ekranda yönetin.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.88),

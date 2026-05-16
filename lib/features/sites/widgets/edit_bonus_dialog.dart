@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
-
-const _cardBg = Color(0xFFF5F5F6);
-const _accent = Color(0xFF1A6B5A);
-const _accentLight = Color(0xFF2E9E82);
 
 Future<void> showEditBonusDialog(
   BuildContext context,
@@ -19,116 +17,151 @@ Future<void> showEditBonusDialog(
 
   return showDialog<void>(
     context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (context) {
       return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _cardBg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFD0D0D4)),
+        backgroundColor: AppColors.background,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.lg,
           ),
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                '${site.name} — Gunluk Prim',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1A1A1A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Merkez icin 0, diger ilceler icin ornegin 200 girin.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF777777)),
-              ),
-              const SizedBox(height: 14),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD4D4D4)),
-                ),
-                child: TextField(
-                  controller: bonusController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Gunluk Prim (TL)',
-                    hintText: '0',
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 14,
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.brandSurface,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    border: InputBorder.none,
+                    child: const Icon(
+                      Icons.payments_outlined,
+                      color: AppColors.brand,
+                      size: 22,
+                    ),
                   ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Günlük Prim',
+                          style: AppTextStyles.cardTitle,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          site.name,
+                          style: AppTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              TextField(
+                controller: bonusController,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                decoration: InputDecoration(
+                  hintText: '0',
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(left: 14, right: 8),
+                    child: Text(
+                      '₺',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 0,
+                    minHeight: 0,
+                  ),
+                  helperText:
+                      'Merkez için 0, diğer ilçeler için örn. 200 girin.',
+                  helperStyle: AppTextStyles.caption,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.xl),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF1A1A1A),
-                        side: const BorderSide(color: Color(0xFFD2D2D2)),
+                        foregroundColor: AppColors.textSecondary,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                       ),
                       onPressed: () => Navigator.pop(context),
                       child: const Text(
-                        'Iptal',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                        'İptal',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        gradient: const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [_accent, _accentLight],
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.brand,
+                        foregroundColor: AppColors.textOnBrand,
+                        minimumSize: const Size.fromHeight(48),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
                       ),
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: () async {
-                          final bonus =
-                              double.tryParse(bonusController.text.trim()) ??
-                              0;
-                          await ref
-                              .read(siteRepositoryProvider)
-                              .updateSiteBonus(
-                                siteId: site.id,
-                                dailyBonus: bonus,
-                              );
-                          if (context.mounted) Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Kaydet',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                          ),
+                      onPressed: () async {
+                        final raw =
+                            bonusController.text.trim().replaceAll(',', '.');
+                        final bonus = double.tryParse(raw) ?? 0;
+                        await ref
+                            .read(siteRepositoryProvider)
+                            .updateSiteBonus(
+                              siteId: site.id,
+                              dailyBonus: bonus,
+                            );
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Kaydet',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ),

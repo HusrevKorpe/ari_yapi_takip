@@ -46,7 +46,7 @@ class WorkerPayrollSheet extends ConsumerWidget {
               ),
               error: (e, _) => Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text('Hesaplama hatasi: $e'),
+                child: Text('Hesaplama hatası: $e'),
               ),
               data: (result) => _SheetBody(worker: worker, result: result),
             ),
@@ -91,7 +91,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       ref.invalidate(workerPayrollProvider(widget.worker));
 
       if (mounted) {
-        showSuccessSnackBar(context, 'Maas odendi olarak kaydedildi');
+        showSuccessSnackBar(context, 'Maaş ödendi olarak kaydedildi');
       }
     } on DuplicatePaymentException catch (e) {
       // İki cihazdan eşzamanlı ödeme: ikinci cihazda pull sync sonrası bu
@@ -107,7 +107,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       }
     } catch (e) {
       if (mounted) {
-        showErrorSnackBar(context, 'Kayit hatasi: $e');
+        showErrorSnackBar(context, 'Kayıt hatası: $e');
       }
     } finally {
       if (mounted) setState(() => _saving = false);

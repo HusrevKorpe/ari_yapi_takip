@@ -24,7 +24,7 @@ class NameHeaderCell extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              'Calisan',
+              'Çalışan',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

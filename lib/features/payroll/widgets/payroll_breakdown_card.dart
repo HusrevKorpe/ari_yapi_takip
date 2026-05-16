@@ -25,13 +25,13 @@ class PayrollBreakdownCard extends StatelessWidget {
             child: Column(
               children: [
                 PayrollSummaryRow(
-                  label: 'Donem',
+                  label: 'Dönem',
                   value:
                       '${formatDate(result.periodStart)} – ${formatDate(result.periodEnd)}',
                 ),
                 const SizedBox(height: 10),
                 PayrollSummaryRow(
-                  label: 'Calistigi Gun',
+                  label: 'Çalıştığı Gün',
                   value: formatWorkedDays(result.workedDayEquivalent),
                 ),
                 const SizedBox(height: 10),
@@ -44,7 +44,7 @@ class PayrollBreakdownCard extends StatelessWidget {
                 if (result.locationBonus > 0) ...[
                   const SizedBox(height: 10),
                   PayrollSummaryRow(
-                    label: 'Bolge Primi',
+                    label: 'Bölge Primi',
                     value: '+${formatMoney(result.locationBonus)}',
                     valueColor: const Color(0xFF1A6B5A),
                   ),
@@ -52,7 +52,7 @@ class PayrollBreakdownCard extends StatelessWidget {
                 if (result.deductions > 0) ...[
                   const SizedBox(height: 10),
                   PayrollSummaryRow(
-                    label: 'Kesinti (Avans+Borc)',
+                    label: 'Kesinti (Avans+Borç)',
                     value: '-${formatMoney(result.deductions)}',
                     valueColor: const Color(0xFFB60A0A),
                   ),
@@ -224,7 +224,7 @@ class PayrollPayButton extends StatelessWidget {
                 )
               : const Icon(Icons.check_circle_outline, size: 20),
           label: Text(
-            saving ? 'Kaydediliyor...' : 'Maas Ver',
+            saving ? 'Kaydediliyor...' : 'Maaş Ver',
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w800,

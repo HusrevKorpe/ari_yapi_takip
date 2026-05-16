@@ -13,15 +13,9 @@ class IncomeRepository {
   final Uuid _uuid;
   final SyncContext _ctx;
 
-  Stream<List<Income>> watchMonth(DateTime month) {
-    final start = monthStart(month);
-    final end = monthEnd(month);
-
+  Stream<List<Income>> watchAll() {
     final query = _db.select(_db.incomes)
-      ..where(
-        (i) =>
-            i.incomeDate.isBetweenValues(start, end) & i.deletedAt.isNull(),
-      )
+      ..where((i) => i.deletedAt.isNull())
       ..orderBy([(i) => OrderingTerm.desc(i.incomeDate)]);
     return query.watch();
   }
@@ -107,17 +101,4 @@ class IncomeRepository {
     });
   }
 
-  Future<double> totalForMonth(DateTime month) async {
-    final start = monthStart(month);
-    final end = monthEnd(month);
-
-    final totalExp = _db.incomes.amount.sum();
-    final query = _db.selectOnly(_db.incomes)
-      ..addColumns([totalExp])
-      ..where(_db.incomes.incomeDate.isBetweenValues(start, end) &
-          _db.incomes.deletedAt.isNull());
-
-    final row = await query.getSingle();
-    return row.read(totalExp) ?? 0;
-  }
 }

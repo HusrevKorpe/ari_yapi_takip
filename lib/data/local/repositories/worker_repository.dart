@@ -34,6 +34,7 @@ class WorkerRepository {
     String? notes,
     String payFrequency = 'weekly',
     bool isActive = true,
+    bool receivesBonus = true,
   }) async {
     final workerId = id ?? _uuid.v4();
     final now = DateTime.now();
@@ -56,6 +57,7 @@ class WorkerRepository {
           payFrequency: Value(payFrequency),
           notes: Value(notes),
           isActive: Value(isActive),
+          receivesBonus: Value(receivesBonus),
           updatedAt: Value(now),
           lastModifiedBy: Value(_ctx.userId),
           deviceId: Value(_ctx.deviceId),

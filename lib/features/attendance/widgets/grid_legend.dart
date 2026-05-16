@@ -8,10 +8,10 @@ class GridLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const items = [
-      (color: kGridGreen, icon: Icons.check_rounded, label: 'Calisti'),
-      (color: kGridOrange, icon: Icons.remove_rounded, label: 'Yarim'),
+      (color: kGridGreen, icon: Icons.check_rounded, label: 'Geldi'),
+      (color: kGridOrange, icon: Icons.remove_rounded, label: 'Yarım'),
       (color: kGridRed, icon: Icons.close_rounded, label: 'Gelmedi'),
-      (color: kGridBlue, icon: Icons.pause_rounded, label: 'Izinli'),
+      (color: kGridBlue, icon: Icons.pause_rounded, label: 'İzinli'),
     ];
 
     return Container(

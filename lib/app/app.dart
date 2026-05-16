@@ -11,6 +11,7 @@ import '../features/payroll/payroll_page.dart';
 import '../features/sites/sites_page.dart';
 import '../features/workers/workers_page.dart';
 import '../shared/snackbar_helper.dart';
+import 'design_tokens.dart';
 import 'splash_page.dart';
 import 'theme.dart';
 
@@ -25,7 +26,7 @@ class _AriAppState extends ConsumerState<AriApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Arı Saha Yonetim',
+      title: 'Arı Saha Yönetim',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       locale: const Locale('tr', 'TR'),
@@ -78,35 +79,41 @@ class _DatabaseErrorScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.storage_rounded,
-                    size: 48, color: Colors.red),
-                const SizedBox(height: 16),
-                const Text(
+                const Icon(
+                  Icons.storage_rounded,
+                  size: 48,
+                  color: AppColors.danger,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
                   'Veritabanı güncellenemedi',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: AppTextStyles.cardTitle,
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                const SizedBox(height: AppSpacing.sm),
+                Text(
                   'Uygulama yeni sürüme hazırlanırken bir sorun oluştu. '
                   'Lütfen tekrar deneyin; sorun sürerse destekle iletişime geçin.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF666666)),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFFB5390F)),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.danger,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.lg),
                 FilledButton(
                   onPressed: onRetry,
                   child: const Text('Tekrar Dene'),
@@ -129,13 +136,38 @@ class RootShell extends ConsumerStatefulWidget {
 
 class _RootShellState extends ConsumerState<RootShell> {
   int _index = 0;
-  static const _tabItems = <({IconData icon, String label})>[
-    (icon: Icons.people_alt_rounded, label: 'Calisanlar'),
-    (icon: Icons.fact_check_outlined, label: 'Yoklama'),
-    (icon: Icons.receipt_long_rounded, label: 'Gider'),
-    (icon: Icons.trending_up_rounded, label: 'Gelir'),
-    (icon: Icons.payments_rounded, label: 'Maas'),
-    (icon: Icons.location_city_rounded, label: 'Santiyeler'),
+
+  static const _destinations = <NavigationDestination>[
+    NavigationDestination(
+      icon: Icon(Icons.people_alt_outlined),
+      selectedIcon: Icon(Icons.people_alt_rounded),
+      label: 'Çalışan',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.fact_check_outlined),
+      selectedIcon: Icon(Icons.fact_check_rounded),
+      label: 'Yoklama',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.receipt_long_outlined),
+      selectedIcon: Icon(Icons.receipt_long_rounded),
+      label: 'Gider',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.trending_up_outlined),
+      selectedIcon: Icon(Icons.trending_up_rounded),
+      label: 'Gelir',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.payments_outlined),
+      selectedIcon: Icon(Icons.payments_rounded),
+      label: 'Maaş',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.location_city_outlined),
+      selectedIcon: Icon(Icons.location_city_rounded),
+      label: 'Şantiye',
+    ),
   ];
 
   static const _pages = [
@@ -153,66 +185,22 @@ class _RootShellState extends ConsumerState<RootShell> {
           data: (v) => v,
           orElse: () => 0,
         );
-    final conflictCount = ref.watch(unseenConflictCountProvider).maybeWhen(
-          data: (v) => v,
-          orElse: () => 0,
-        );
 
     return Scaffold(
       body: Column(
         children: [
           if (failedCount > 0) _SyncFailureBanner(count: failedCount),
-          if (conflictCount > 0) _SyncConflictBanner(count: conflictCount),
           Expanded(child: _pages[_index]),
         ],
       ),
-      bottomNavigationBar: Container(
+      bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFEAEAEA))),
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 60,
-            child: Row(
-              children: List.generate(_tabItems.length, (tabIndex) {
-                final isSelected = _index == tabIndex;
-                final item = _tabItems[tabIndex];
-
-                return Expanded(
-                  child: InkWell(
-                    onTap: () => setState(() => _index = tabIndex),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          item.icon,
-                          size: 22,
-                          color: isSelected
-                              ? const Color(0xFF8A7300)
-                              : const Color(0xFFAAAAAA),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: isSelected
-                                ? const Color(0xFF8A7300)
-                                : const Color(0xFFAAAAAA),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: _destinations,
         ),
       ),
     );
@@ -227,31 +215,34 @@ class _SyncFailureBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Material(
-      color: const Color(0xFFFFF4E5),
+      color: AppColors.warningLight,
       child: InkWell(
         onTap: () => _showDetails(context, ref),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               const Icon(
                 Icons.sync_problem_rounded,
-                color: Color(0xFFC05621),
+                color: AppColors.warning,
                 size: 20,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   '$count kayıt senkronize edilemedi — dokunarak incele',
-                  style: const TextStyle(
-                    color: Color(0xFF7A3E0F),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.warning,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF7A3E0F),
+                Icons.chevron_right_rounded,
+                color: AppColors.warning,
                 size: 20,
               ),
             ],
@@ -338,146 +329,3 @@ class _SyncFailureBanner extends ConsumerWidget {
   }
 }
 
-/// İki cihazdan eşzamanlı yapılan değişikliklerde "kim kazandı" sorusunun
-/// kullanıcıya görünür hâle gelmesini sağlar. PullSyncService çakışma tespit
-/// ettiğinde audit_logs'a kalıcı yazıyor; bu banner okunmamış kayıt sayısını
-/// gösterip detayda hangi kayıtların etkilendiğini açar.
-class _SyncConflictBanner extends ConsumerWidget {
-  const _SyncConflictBanner({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Material(
-      color: const Color(0xFFE8F0FE),
-      child: InkWell(
-        onTap: () => _showDetails(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.merge_type_rounded,
-                color: Color(0xFF1A4D8A),
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '$count kayıtta uzak/yerel çakışması — dokunarak incele',
-                  style: const TextStyle(
-                    color: Color(0xFF1A4D8A),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF1A4D8A),
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showDetails(BuildContext context, WidgetRef ref) async {
-    final db = ref.read(databaseProvider);
-    final items = await db.recentConflicts();
-    if (!context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Çakışma kayıtları'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: items.isEmpty
-              ? const Text('Kayıt bulunamadı.')
-              : ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const Divider(height: 12),
-                  itemBuilder: (context, i) {
-                    final it = items[i];
-                    final kindLabel = _kindLabel(it.entityType);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD7E3F7),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                kindLabel,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1A4D8A),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _formatTimestamp(it.createdAt),
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF666666),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          it.message,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Kapat'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await ref.read(localPreferencesProvider).markConflictsSeen();
-              ref.invalidate(unseenConflictCountProvider);
-              if (context.mounted) Navigator.of(context).pop();
-            },
-            child: const Text('Görüldü olarak işaretle'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _kindLabel(String entityType) {
-    if (entityType.startsWith('sync_conflict_overwritten_')) {
-      return 'UZAK YAZDI';
-    }
-    if (entityType.startsWith('sync_conflict_pending_skipped_')) {
-      return 'BEKLEYEN ATLANDI';
-    }
-    return 'ÇAKIŞMA';
-  }
-
-  String _formatTimestamp(DateTime ts) {
-    final local = ts.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(local.day)}.${two(local.month)}.${local.year} '
-        '${two(local.hour)}:${two(local.minute)}';
-  }
-}

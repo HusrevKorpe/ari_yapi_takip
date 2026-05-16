@@ -176,7 +176,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
       },
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (_, _) => const Scaffold(body: Center(child: Text('Auth hatasi'))),
+      error: (_, _) => const Scaffold(body: Center(child: Text('Oturum hatası'))),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/formatters.dart';
@@ -35,102 +36,116 @@ class WorkerPayrollCard extends ConsumerWidget {
     final pendingDays = today.difference(periodStart).inDays + 1;
     final hasPending = pendingDays > 0;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF2F2F4),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: hasPending
-                ? const Color(0xFFD9C97A)
-                : const Color(0xFFDCDCDD),
+    final accent = hasPending ? AppColors.brand : AppColors.success;
+
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: hasPending
+                  ? AppColors.brand.withValues(alpha: 0.4)
+                  : AppColors.border,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: hasPending
-                    ? const Color(0xFF8A7300).withValues(alpha: 0.12)
-                    : const Color(0xFFE0E0E0),
-                borderRadius: BorderRadius.circular(10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(
+                  Icons.payments_rounded,
+                  size: 20,
+                  color: accent,
+                ),
               ),
-              child: Icon(
-                Icons.person_outline_rounded,
-                size: 22,
-                color: hasPending
-                    ? const Color(0xFF8A7300)
-                    : const Color(0xFF999999),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      worker.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.cardTitle,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasPending
+                          ? 'Son ödeme: ${lastPaidEnd != null ? formatDate(lastPaidEnd) : "—"}'
+                          : 'Güncel',
+                      style: AppTextStyles.caption.copyWith(
+                        color: hasPending
+                            ? AppColors.textSecondary
+                            : AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    worker.fullName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1A1A),
-                    ),
+              const SizedBox(width: AppSpacing.sm),
+              if (hasPending)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    hasPending
-                        ? 'Son odeme: ${lastPaidEnd != null ? formatDate(lastPaidEnd) : "Yok"}'
-                        : 'Guncel',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: hasPending
-                          ? const Color(0xFF888888)
-                          : const Color(0xFF1A6B5A),
-                      fontWeight: FontWeight.w600,
-                    ),
+                  decoration: BoxDecoration(
+                    color: AppColors.brandSurface,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$pendingDays',
+                        style: AppTextStyles.bodyStrong.copyWith(
+                          color: AppColors.brand,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'gün',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.brand,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.success,
+                  size: 20,
+                ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: AppColors.textTertiary,
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (hasPending) ...[
-                  Text(
-                    '$pendingDays gun',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF8A7300),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'bekliyor',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF888888),
-                    ),
-                  ),
-                ] else
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: Color(0xFF1A6B5A),
-                    size: 22,
-                  ),
-              ],
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 20,
-              color: Color(0xFF999999),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

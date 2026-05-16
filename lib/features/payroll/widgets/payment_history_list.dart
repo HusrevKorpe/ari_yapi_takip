@@ -104,7 +104,7 @@ class _PaymentRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Odeme: ${formatDate(payment.paidAt)}',
+                      'Ödeme: ${formatDate(payment.paidAt)}',
                       style: const TextStyle(
                         fontSize: 11,
                         color: Color(0xFF888888),

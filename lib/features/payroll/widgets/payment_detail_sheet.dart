@@ -92,7 +92,7 @@ class _DetailBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       children: [
         Text(
-          'Odeme Detayi',
+          'Ödeme Detayı',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
                 color: const Color(0xFF1A1A1A),
@@ -100,18 +100,18 @@ class _DetailBody extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         PayrollSummaryRow(
-          label: 'Donem',
+          label: 'Dönem',
           value:
               '${formatDate(payment.periodStart)} – ${formatDate(payment.periodEnd)}',
         ),
         const SizedBox(height: 12),
         PayrollSummaryRow(
-          label: 'Odeme Tarihi',
+          label: 'Ödeme Tarihi',
           value: formatDate(payment.paidAt),
         ),
         const SizedBox(height: 12),
         PayrollSummaryRow(
-          label: 'Odenen Tutar',
+          label: 'Ödenen Tutar',
           value: formatMoney(payment.amount),
           valueColor: const Color(0xFF1A6B5A),
         ),
@@ -120,7 +120,7 @@ class _DetailBody extends StatelessWidget {
           const Divider(color: Color(0xFFDCDCDD)),
           const SizedBox(height: 12),
           PayrollSummaryRow(
-            label: 'Calisilan Gun',
+            label: 'Çalışılan Gün',
             value: formatWorkedDays(snapshot!.workedDayEquivalent),
           ),
           const SizedBox(height: 12),
@@ -155,7 +155,7 @@ class _DetailBody extends StatelessWidget {
             onPressed: () => cancelPaymentFlow(context, payment),
             icon: const Icon(Icons.undo_rounded, size: 18),
             label: const Text(
-              'Odemeyi Iptal Et',
+              'Ödemeyi İptal Et',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

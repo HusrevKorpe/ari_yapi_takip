@@ -49,15 +49,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (raw.contains('invalid-credential') ||
         raw.contains('wrong-password') ||
         raw.contains('user-not-found')) {
-      return 'Email veya sifre hatali';
+      return 'E-posta veya şifre hatalı';
     }
     if (raw.contains('too-many-requests')) {
-      return 'Cok fazla deneme. Lutfen daha sonra tekrar deneyin';
+      return 'Çok fazla deneme. Lütfen daha sonra tekrar deneyin';
     }
     if (raw.contains('network-request-failed')) {
-      return 'Internet baglantisi yok';
+      return 'İnternet bağlantısı yok';
     }
-    return 'Giris yapilamadi. Lutfen tekrar deneyin';
+    return 'Giriş yapılamadı. Lütfen tekrar deneyin';
   }
 
   @override
@@ -72,7 +72,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             children: [
               const SizedBox(height: 40),
               const Text(
-                'Ari Yapi',
+                'Arı Yapı',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28,
@@ -82,7 +82,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Hesabiniza giris yapin',
+                'Hesabınıza giriş yapın',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.black54),
               ),
@@ -101,7 +101,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 obscureText: !_passwordVisible,
                 onSubmitted: (_) => _login(),
                 decoration: InputDecoration(
-                  labelText: 'Sifre',
+                  labelText: 'Şifre',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -126,7 +126,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           child: CircularProgressIndicator(strokeWidth: 2.5),
                         )
                       : const Text(
-                          'Giris Yap',
+                          'Giriş Yap',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

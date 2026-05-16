@@ -593,6 +593,21 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _receivesBonusMeta = const VerificationMeta(
+    'receivesBonus',
+  );
+  @override
+  late final GeneratedColumn<bool> receivesBonus = GeneratedColumn<bool>(
+    'receives_bonus',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("receives_bonus" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -638,6 +653,7 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
     defaultSiteId,
     payFrequency,
     isActive,
+    receivesBonus,
     notes,
     createdAt,
     updatedAt,
@@ -729,6 +745,15 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('receives_bonus')) {
+      context.handle(
+        _receivesBonusMeta,
+        receivesBonus.isAcceptableOrUnknown(
+          data['receives_bonus']!,
+          _receivesBonusMeta,
+        ),
+      );
+    }
     if (data.containsKey('notes')) {
       context.handle(
         _notesMeta,
@@ -796,6 +821,10 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      receivesBonus: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}receives_bonus'],
+      )!,
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -828,6 +857,7 @@ class Worker extends DataClass implements Insertable<Worker> {
   final String? defaultSiteId;
   final String payFrequency;
   final bool isActive;
+  final bool receivesBonus;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -842,6 +872,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     this.defaultSiteId,
     required this.payFrequency,
     required this.isActive,
+    required this.receivesBonus,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -863,6 +894,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     }
     map['pay_frequency'] = Variable<String>(payFrequency);
     map['is_active'] = Variable<bool>(isActive);
+    map['receives_bonus'] = Variable<bool>(receivesBonus);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -887,6 +919,7 @@ class Worker extends DataClass implements Insertable<Worker> {
           : Value(defaultSiteId),
       payFrequency: Value(payFrequency),
       isActive: Value(isActive),
+      receivesBonus: Value(receivesBonus),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -911,6 +944,7 @@ class Worker extends DataClass implements Insertable<Worker> {
       defaultSiteId: serializer.fromJson<String?>(json['defaultSiteId']),
       payFrequency: serializer.fromJson<String>(json['payFrequency']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      receivesBonus: serializer.fromJson<bool>(json['receivesBonus']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -930,6 +964,7 @@ class Worker extends DataClass implements Insertable<Worker> {
       'defaultSiteId': serializer.toJson<String?>(defaultSiteId),
       'payFrequency': serializer.toJson<String>(payFrequency),
       'isActive': serializer.toJson<bool>(isActive),
+      'receivesBonus': serializer.toJson<bool>(receivesBonus),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -947,6 +982,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     Value<String?> defaultSiteId = const Value.absent(),
     String? payFrequency,
     bool? isActive,
+    bool? receivesBonus,
     Value<String?> notes = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -963,6 +999,7 @@ class Worker extends DataClass implements Insertable<Worker> {
         : this.defaultSiteId,
     payFrequency: payFrequency ?? this.payFrequency,
     isActive: isActive ?? this.isActive,
+    receivesBonus: receivesBonus ?? this.receivesBonus,
     notes: notes.present ? notes.value : this.notes,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -987,6 +1024,9 @@ class Worker extends DataClass implements Insertable<Worker> {
           ? data.payFrequency.value
           : this.payFrequency,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      receivesBonus: data.receivesBonus.present
+          ? data.receivesBonus.value
+          : this.receivesBonus,
       notes: data.notes.present ? data.notes.value : this.notes,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1006,6 +1046,7 @@ class Worker extends DataClass implements Insertable<Worker> {
           ..write('defaultSiteId: $defaultSiteId, ')
           ..write('payFrequency: $payFrequency, ')
           ..write('isActive: $isActive, ')
+          ..write('receivesBonus: $receivesBonus, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1025,6 +1066,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     defaultSiteId,
     payFrequency,
     isActive,
+    receivesBonus,
     notes,
     createdAt,
     updatedAt,
@@ -1043,6 +1085,7 @@ class Worker extends DataClass implements Insertable<Worker> {
           other.defaultSiteId == this.defaultSiteId &&
           other.payFrequency == this.payFrequency &&
           other.isActive == this.isActive &&
+          other.receivesBonus == this.receivesBonus &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1059,6 +1102,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
   final Value<String?> defaultSiteId;
   final Value<String> payFrequency;
   final Value<bool> isActive;
+  final Value<bool> receivesBonus;
   final Value<String?> notes;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1074,6 +1118,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     this.defaultSiteId = const Value.absent(),
     this.payFrequency = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.receivesBonus = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1090,6 +1135,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     this.defaultSiteId = const Value.absent(),
     this.payFrequency = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.receivesBonus = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1108,6 +1154,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     Expression<String>? defaultSiteId,
     Expression<String>? payFrequency,
     Expression<bool>? isActive,
+    Expression<bool>? receivesBonus,
     Expression<String>? notes,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1124,6 +1171,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
       if (defaultSiteId != null) 'default_site_id': defaultSiteId,
       if (payFrequency != null) 'pay_frequency': payFrequency,
       if (isActive != null) 'is_active': isActive,
+      if (receivesBonus != null) 'receives_bonus': receivesBonus,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1142,6 +1190,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     Value<String?>? defaultSiteId,
     Value<String>? payFrequency,
     Value<bool>? isActive,
+    Value<bool>? receivesBonus,
     Value<String?>? notes,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1158,6 +1207,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
       defaultSiteId: defaultSiteId ?? this.defaultSiteId,
       payFrequency: payFrequency ?? this.payFrequency,
       isActive: isActive ?? this.isActive,
+      receivesBonus: receivesBonus ?? this.receivesBonus,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1198,6 +1248,9 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (receivesBonus.present) {
+      map['receives_bonus'] = Variable<bool>(receivesBonus.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -1226,6 +1279,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
           ..write('defaultSiteId: $defaultSiteId, ')
           ..write('payFrequency: $payFrequency, ')
           ..write('isActive: $isActive, ')
+          ..write('receivesBonus: $receivesBonus, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1990,6 +2044,17 @@ class $AttendanceEntriesTable extends AttendanceEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _secondSiteIdMeta = const VerificationMeta(
+    'secondSiteId',
+  );
+  @override
+  late final GeneratedColumn<String> secondSiteId = GeneratedColumn<String>(
+    'second_site_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -2034,6 +2099,7 @@ class $AttendanceEntriesTable extends AttendanceEntries
     workDate,
     status,
     siteId,
+    secondSiteId,
     note,
     createdAt,
     updatedAt,
@@ -2115,6 +2181,15 @@ class $AttendanceEntriesTable extends AttendanceEntries
         siteId.isAcceptableOrUnknown(data['site_id']!, _siteIdMeta),
       );
     }
+    if (data.containsKey('second_site_id')) {
+      context.handle(
+        _secondSiteIdMeta,
+        secondSiteId.isAcceptableOrUnknown(
+          data['second_site_id']!,
+          _secondSiteIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('note')) {
       context.handle(
         _noteMeta,
@@ -2182,6 +2257,10 @@ class $AttendanceEntriesTable extends AttendanceEntries
         DriftSqlType.string,
         data['${effectivePrefix}site_id'],
       ),
+      secondSiteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}second_site_id'],
+      ),
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
@@ -2213,6 +2292,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
   final DateTime workDate;
   final String status;
   final String? siteId;
+  final String? secondSiteId;
   final String? note;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -2226,6 +2306,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
     required this.workDate,
     required this.status,
     this.siteId,
+    this.secondSiteId,
     this.note,
     required this.createdAt,
     required this.updatedAt,
@@ -2245,6 +2326,9 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || siteId != null) {
       map['site_id'] = Variable<String>(siteId);
+    }
+    if (!nullToAbsent || secondSiteId != null) {
+      map['second_site_id'] = Variable<String>(secondSiteId);
     }
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
@@ -2269,6 +2353,9 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
       siteId: siteId == null && nullToAbsent
           ? const Value.absent()
           : Value(siteId),
+      secondSiteId: secondSiteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(secondSiteId),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -2290,6 +2377,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
       workDate: serializer.fromJson<DateTime>(json['workDate']),
       status: serializer.fromJson<String>(json['status']),
       siteId: serializer.fromJson<String?>(json['siteId']),
+      secondSiteId: serializer.fromJson<String?>(json['secondSiteId']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -2308,6 +2396,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
       'workDate': serializer.toJson<DateTime>(workDate),
       'status': serializer.toJson<String>(status),
       'siteId': serializer.toJson<String?>(siteId),
+      'secondSiteId': serializer.toJson<String?>(secondSiteId),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -2324,6 +2413,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
     DateTime? workDate,
     String? status,
     Value<String?> siteId = const Value.absent(),
+    Value<String?> secondSiteId = const Value.absent(),
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -2337,6 +2427,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
     workDate: workDate ?? this.workDate,
     status: status ?? this.status,
     siteId: siteId.present ? siteId.value : this.siteId,
+    secondSiteId: secondSiteId.present ? secondSiteId.value : this.secondSiteId,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -2356,6 +2447,9 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
       workDate: data.workDate.present ? data.workDate.value : this.workDate,
       status: data.status.present ? data.status.value : this.status,
       siteId: data.siteId.present ? data.siteId.value : this.siteId,
+      secondSiteId: data.secondSiteId.present
+          ? data.secondSiteId.value
+          : this.secondSiteId,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -2374,6 +2468,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
           ..write('workDate: $workDate, ')
           ..write('status: $status, ')
           ..write('siteId: $siteId, ')
+          ..write('secondSiteId: $secondSiteId, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -2392,6 +2487,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
     workDate,
     status,
     siteId,
+    secondSiteId,
     note,
     createdAt,
     updatedAt,
@@ -2409,6 +2505,7 @@ class AttendanceEntry extends DataClass implements Insertable<AttendanceEntry> {
           other.workDate == this.workDate &&
           other.status == this.status &&
           other.siteId == this.siteId &&
+          other.secondSiteId == this.secondSiteId &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -2424,6 +2521,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
   final Value<DateTime> workDate;
   final Value<String> status;
   final Value<String?> siteId;
+  final Value<String?> secondSiteId;
   final Value<String?> note;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -2438,6 +2536,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
     this.workDate = const Value.absent(),
     this.status = const Value.absent(),
     this.siteId = const Value.absent(),
+    this.secondSiteId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2453,6 +2552,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
     required DateTime workDate,
     required String status,
     this.siteId = const Value.absent(),
+    this.secondSiteId = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2471,6 +2571,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
     Expression<DateTime>? workDate,
     Expression<String>? status,
     Expression<String>? siteId,
+    Expression<String>? secondSiteId,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -2486,6 +2587,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
       if (workDate != null) 'work_date': workDate,
       if (status != null) 'status': status,
       if (siteId != null) 'site_id': siteId,
+      if (secondSiteId != null) 'second_site_id': secondSiteId,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2503,6 +2605,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
     Value<DateTime>? workDate,
     Value<String>? status,
     Value<String?>? siteId,
+    Value<String?>? secondSiteId,
     Value<String?>? note,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -2518,6 +2621,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
       workDate: workDate ?? this.workDate,
       status: status ?? this.status,
       siteId: siteId ?? this.siteId,
+      secondSiteId: secondSiteId ?? this.secondSiteId,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2555,6 +2659,9 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
     if (siteId.present) {
       map['site_id'] = Variable<String>(siteId.value);
     }
+    if (secondSiteId.present) {
+      map['second_site_id'] = Variable<String>(secondSiteId.value);
+    }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
@@ -2582,6 +2689,7 @@ class AttendanceEntriesCompanion extends UpdateCompanion<AttendanceEntry> {
           ..write('workDate: $workDate, ')
           ..write('status: $status, ')
           ..write('siteId: $siteId, ')
+          ..write('secondSiteId: $secondSiteId, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -6232,6 +6340,613 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
   }
 }
 
+class $SiteNotesTable extends SiteNotes
+    with TableInfo<$SiteNotesTable, SiteNote> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SiteNotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedByMeta = const VerificationMeta(
+    'lastModifiedBy',
+  );
+  @override
+  late final GeneratedColumn<String> lastModifiedBy = GeneratedColumn<String>(
+    'last_modified_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncVersionMeta = const VerificationMeta(
+    'syncVersion',
+  );
+  @override
+  late final GeneratedColumn<int> syncVersion = GeneratedColumn<int>(
+    'sync_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _siteIdMeta = const VerificationMeta('siteId');
+  @override
+  late final GeneratedColumn<String> siteId = GeneratedColumn<String>(
+    'site_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteDateMeta = const VerificationMeta(
+    'noteDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> noteDate = GeneratedColumn<DateTime>(
+    'note_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentMeta = const VerificationMeta(
+    'content',
+  );
+  @override
+  late final GeneratedColumn<String> content = GeneratedColumn<String>(
+    'content',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    siteId,
+    noteDate,
+    content,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'site_notes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SiteNote> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified_by')) {
+      context.handle(
+        _lastModifiedByMeta,
+        lastModifiedBy.isAcceptableOrUnknown(
+          data['last_modified_by']!,
+          _lastModifiedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_version')) {
+      context.handle(
+        _syncVersionMeta,
+        syncVersion.isAcceptableOrUnknown(
+          data['sync_version']!,
+          _syncVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('site_id')) {
+      context.handle(
+        _siteIdMeta,
+        siteId.isAcceptableOrUnknown(data['site_id']!, _siteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_siteIdMeta);
+    }
+    if (data.containsKey('note_date')) {
+      context.handle(
+        _noteDateMeta,
+        noteDate.isAcceptableOrUnknown(data['note_date']!, _noteDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_noteDateMeta);
+    }
+    if (data.containsKey('content')) {
+      context.handle(
+        _contentMeta,
+        content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SiteNote map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SiteNote(
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModifiedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_modified_by'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      syncVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_version'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      siteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}site_id'],
+      )!,
+      noteDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}note_date'],
+      )!,
+      content: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SiteNotesTable createAlias(String alias) {
+    return $SiteNotesTable(attachedDatabase, alias);
+  }
+}
+
+class SiteNote extends DataClass implements Insertable<SiteNote> {
+  final DateTime? deletedAt;
+  final String lastModifiedBy;
+  final String deviceId;
+  final int syncVersion;
+  final String id;
+  final String siteId;
+  final DateTime noteDate;
+  final String content;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SiteNote({
+    this.deletedAt,
+    required this.lastModifiedBy,
+    required this.deviceId,
+    required this.syncVersion,
+    required this.id,
+    required this.siteId,
+    required this.noteDate,
+    required this.content,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['last_modified_by'] = Variable<String>(lastModifiedBy);
+    map['device_id'] = Variable<String>(deviceId);
+    map['sync_version'] = Variable<int>(syncVersion);
+    map['id'] = Variable<String>(id);
+    map['site_id'] = Variable<String>(siteId);
+    map['note_date'] = Variable<DateTime>(noteDate);
+    map['content'] = Variable<String>(content);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SiteNotesCompanion toCompanion(bool nullToAbsent) {
+    return SiteNotesCompanion(
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModifiedBy: Value(lastModifiedBy),
+      deviceId: Value(deviceId),
+      syncVersion: Value(syncVersion),
+      id: Value(id),
+      siteId: Value(siteId),
+      noteDate: Value(noteDate),
+      content: Value(content),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SiteNote.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SiteNote(
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      lastModifiedBy: serializer.fromJson<String>(json['lastModifiedBy']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncVersion: serializer.fromJson<int>(json['syncVersion']),
+      id: serializer.fromJson<String>(json['id']),
+      siteId: serializer.fromJson<String>(json['siteId']),
+      noteDate: serializer.fromJson<DateTime>(json['noteDate']),
+      content: serializer.fromJson<String>(json['content']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'lastModifiedBy': serializer.toJson<String>(lastModifiedBy),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'syncVersion': serializer.toJson<int>(syncVersion),
+      'id': serializer.toJson<String>(id),
+      'siteId': serializer.toJson<String>(siteId),
+      'noteDate': serializer.toJson<DateTime>(noteDate),
+      'content': serializer.toJson<String>(content),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SiteNote copyWith({
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? lastModifiedBy,
+    String? deviceId,
+    int? syncVersion,
+    String? id,
+    String? siteId,
+    DateTime? noteDate,
+    String? content,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SiteNote(
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+    deviceId: deviceId ?? this.deviceId,
+    syncVersion: syncVersion ?? this.syncVersion,
+    id: id ?? this.id,
+    siteId: siteId ?? this.siteId,
+    noteDate: noteDate ?? this.noteDate,
+    content: content ?? this.content,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SiteNote copyWithCompanion(SiteNotesCompanion data) {
+    return SiteNote(
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModifiedBy: data.lastModifiedBy.present
+          ? data.lastModifiedBy.value
+          : this.lastModifiedBy,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncVersion: data.syncVersion.present
+          ? data.syncVersion.value
+          : this.syncVersion,
+      id: data.id.present ? data.id.value : this.id,
+      siteId: data.siteId.present ? data.siteId.value : this.siteId,
+      noteDate: data.noteDate.present ? data.noteDate.value : this.noteDate,
+      content: data.content.present ? data.content.value : this.content,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SiteNote(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('siteId: $siteId, ')
+          ..write('noteDate: $noteDate, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    siteId,
+    noteDate,
+    content,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SiteNote &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModifiedBy == this.lastModifiedBy &&
+          other.deviceId == this.deviceId &&
+          other.syncVersion == this.syncVersion &&
+          other.id == this.id &&
+          other.siteId == this.siteId &&
+          other.noteDate == this.noteDate &&
+          other.content == this.content &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SiteNotesCompanion extends UpdateCompanion<SiteNote> {
+  final Value<DateTime?> deletedAt;
+  final Value<String> lastModifiedBy;
+  final Value<String> deviceId;
+  final Value<int> syncVersion;
+  final Value<String> id;
+  final Value<String> siteId;
+  final Value<DateTime> noteDate;
+  final Value<String> content;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SiteNotesCompanion({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    this.id = const Value.absent(),
+    this.siteId = const Value.absent(),
+    this.noteDate = const Value.absent(),
+    this.content = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SiteNotesCompanion.insert({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    required String id,
+    required String siteId,
+    required DateTime noteDate,
+    required String content,
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       siteId = Value(siteId),
+       noteDate = Value(noteDate),
+       content = Value(content);
+  static Insertable<SiteNote> custom({
+    Expression<DateTime>? deletedAt,
+    Expression<String>? lastModifiedBy,
+    Expression<String>? deviceId,
+    Expression<int>? syncVersion,
+    Expression<String>? id,
+    Expression<String>? siteId,
+    Expression<DateTime>? noteDate,
+    Expression<String>? content,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModifiedBy != null) 'last_modified_by': lastModifiedBy,
+      if (deviceId != null) 'device_id': deviceId,
+      if (syncVersion != null) 'sync_version': syncVersion,
+      if (id != null) 'id': id,
+      if (siteId != null) 'site_id': siteId,
+      if (noteDate != null) 'note_date': noteDate,
+      if (content != null) 'content': content,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SiteNotesCompanion copyWith({
+    Value<DateTime?>? deletedAt,
+    Value<String>? lastModifiedBy,
+    Value<String>? deviceId,
+    Value<int>? syncVersion,
+    Value<String>? id,
+    Value<String>? siteId,
+    Value<DateTime>? noteDate,
+    Value<String>? content,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SiteNotesCompanion(
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+      deviceId: deviceId ?? this.deviceId,
+      syncVersion: syncVersion ?? this.syncVersion,
+      id: id ?? this.id,
+      siteId: siteId ?? this.siteId,
+      noteDate: noteDate ?? this.noteDate,
+      content: content ?? this.content,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (lastModifiedBy.present) {
+      map['last_modified_by'] = Variable<String>(lastModifiedBy.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncVersion.present) {
+      map['sync_version'] = Variable<int>(syncVersion.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (siteId.present) {
+      map['site_id'] = Variable<String>(siteId.value);
+    }
+    if (noteDate.present) {
+      map['note_date'] = Variable<DateTime>(noteDate.value);
+    }
+    if (content.present) {
+      map['content'] = Variable<String>(content.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SiteNotesCompanion(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('siteId: $siteId, ')
+          ..write('noteDate: $noteDate, ')
+          ..write('content: $content, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $SyncQueueItemsTable extends SyncQueueItems
     with TableInfo<$SyncQueueItemsTable, SyncQueueItem> {
   @override
@@ -7326,6 +8041,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PayrollSnapshotsTable payrollSnapshots = $PayrollSnapshotsTable(
     this,
   );
+  late final $SiteNotesTable siteNotes = $SiteNotesTable(this);
   late final $SyncQueueItemsTable syncQueueItems = $SyncQueueItemsTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   @override
@@ -7342,6 +8058,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     advanceDebts,
     payrollPayments,
     payrollSnapshots,
+    siteNotes,
     syncQueueItems,
     auditLogs,
   ];
@@ -7601,6 +8318,7 @@ typedef $$WorkersTableCreateCompanionBuilder =
       Value<String?> defaultSiteId,
       Value<String> payFrequency,
       Value<bool> isActive,
+      Value<bool> receivesBonus,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -7618,6 +8336,7 @@ typedef $$WorkersTableUpdateCompanionBuilder =
       Value<String?> defaultSiteId,
       Value<String> payFrequency,
       Value<bool> isActive,
+      Value<bool> receivesBonus,
       Value<String?> notes,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -7680,6 +8399,11 @@ class $$WorkersTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get receivesBonus => $composableBuilder(
+    column: $table.receivesBonus,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7758,6 +8482,11 @@ class $$WorkersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get receivesBonus => $composableBuilder(
+    column: $table.receivesBonus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -7821,6 +8550,11 @@ class $$WorkersTableAnnotationComposer
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
+  GeneratedColumn<bool> get receivesBonus => $composableBuilder(
+    column: $table.receivesBonus,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -7869,6 +8603,7 @@ class $$WorkersTableTableManager
                 Value<String?> defaultSiteId = const Value.absent(),
                 Value<String> payFrequency = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> receivesBonus = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -7884,6 +8619,7 @@ class $$WorkersTableTableManager
                 defaultSiteId: defaultSiteId,
                 payFrequency: payFrequency,
                 isActive: isActive,
+                receivesBonus: receivesBonus,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -7901,6 +8637,7 @@ class $$WorkersTableTableManager
                 Value<String?> defaultSiteId = const Value.absent(),
                 Value<String> payFrequency = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> receivesBonus = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -7916,6 +8653,7 @@ class $$WorkersTableTableManager
                 defaultSiteId: defaultSiteId,
                 payFrequency: payFrequency,
                 isActive: isActive,
+                receivesBonus: receivesBonus,
                 notes: notes,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -8267,6 +9005,7 @@ typedef $$AttendanceEntriesTableCreateCompanionBuilder =
       required DateTime workDate,
       required String status,
       Value<String?> siteId,
+      Value<String?> secondSiteId,
       Value<String?> note,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -8283,6 +9022,7 @@ typedef $$AttendanceEntriesTableUpdateCompanionBuilder =
       Value<DateTime> workDate,
       Value<String> status,
       Value<String?> siteId,
+      Value<String?> secondSiteId,
       Value<String?> note,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -8340,6 +9080,11 @@ class $$AttendanceEntriesTableFilterComposer
 
   ColumnFilters<String> get siteId => $composableBuilder(
     column: $table.siteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secondSiteId => $composableBuilder(
+    column: $table.secondSiteId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8413,6 +9158,11 @@ class $$AttendanceEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get secondSiteId => $composableBuilder(
+    column: $table.secondSiteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnOrderings(column),
@@ -8468,6 +9218,11 @@ class $$AttendanceEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get siteId =>
       $composableBuilder(column: $table.siteId, builder: (column) => column);
+
+  GeneratedColumn<String> get secondSiteId => $composableBuilder(
+    column: $table.secondSiteId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
@@ -8528,6 +9283,7 @@ class $$AttendanceEntriesTableTableManager
                 Value<DateTime> workDate = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String?> siteId = const Value.absent(),
+                Value<String?> secondSiteId = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -8542,6 +9298,7 @@ class $$AttendanceEntriesTableTableManager
                 workDate: workDate,
                 status: status,
                 siteId: siteId,
+                secondSiteId: secondSiteId,
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -8558,6 +9315,7 @@ class $$AttendanceEntriesTableTableManager
                 required DateTime workDate,
                 required String status,
                 Value<String?> siteId = const Value.absent(),
+                Value<String?> secondSiteId = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -8572,6 +9330,7 @@ class $$AttendanceEntriesTableTableManager
                 workDate: workDate,
                 status: status,
                 siteId: siteId,
+                secondSiteId: secondSiteId,
                 note: note,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -10341,6 +11100,299 @@ typedef $$PayrollSnapshotsTableProcessedTableManager =
       PayrollSnapshot,
       PrefetchHooks Function()
     >;
+typedef $$SiteNotesTableCreateCompanionBuilder =
+    SiteNotesCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      required String id,
+      required String siteId,
+      required DateTime noteDate,
+      required String content,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SiteNotesTableUpdateCompanionBuilder =
+    SiteNotesCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      Value<String> id,
+      Value<String> siteId,
+      Value<DateTime> noteDate,
+      Value<String> content,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SiteNotesTableFilterComposer
+    extends Composer<_$AppDatabase, $SiteNotesTable> {
+  $$SiteNotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get noteDate => $composableBuilder(
+    column: $table.noteDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SiteNotesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SiteNotesTable> {
+  $$SiteNotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get siteId => $composableBuilder(
+    column: $table.siteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get noteDate => $composableBuilder(
+    column: $table.noteDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get content => $composableBuilder(
+    column: $table.content,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SiteNotesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SiteNotesTable> {
+  $$SiteNotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get siteId =>
+      $composableBuilder(column: $table.siteId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get noteDate =>
+      $composableBuilder(column: $table.noteDate, builder: (column) => column);
+
+  GeneratedColumn<String> get content =>
+      $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SiteNotesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SiteNotesTable,
+          SiteNote,
+          $$SiteNotesTableFilterComposer,
+          $$SiteNotesTableOrderingComposer,
+          $$SiteNotesTableAnnotationComposer,
+          $$SiteNotesTableCreateCompanionBuilder,
+          $$SiteNotesTableUpdateCompanionBuilder,
+          (SiteNote, BaseReferences<_$AppDatabase, $SiteNotesTable, SiteNote>),
+          SiteNote,
+          PrefetchHooks Function()
+        > {
+  $$SiteNotesTableTableManager(_$AppDatabase db, $SiteNotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SiteNotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SiteNotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SiteNotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<String> siteId = const Value.absent(),
+                Value<DateTime> noteDate = const Value.absent(),
+                Value<String> content = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SiteNotesCompanion(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                siteId: siteId,
+                noteDate: noteDate,
+                content: content,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                required String id,
+                required String siteId,
+                required DateTime noteDate,
+                required String content,
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SiteNotesCompanion.insert(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                siteId: siteId,
+                noteDate: noteDate,
+                content: content,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SiteNotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SiteNotesTable,
+      SiteNote,
+      $$SiteNotesTableFilterComposer,
+      $$SiteNotesTableOrderingComposer,
+      $$SiteNotesTableAnnotationComposer,
+      $$SiteNotesTableCreateCompanionBuilder,
+      $$SiteNotesTableUpdateCompanionBuilder,
+      (SiteNote, BaseReferences<_$AppDatabase, $SiteNotesTable, SiteNote>),
+      SiteNote,
+      PrefetchHooks Function()
+    >;
 typedef $$SyncQueueItemsTableCreateCompanionBuilder =
     SyncQueueItemsCompanion Function({
       required String id,
@@ -10904,6 +11956,8 @@ class $AppDatabaseManager {
       $$PayrollPaymentsTableTableManager(_db, _db.payrollPayments);
   $$PayrollSnapshotsTableTableManager get payrollSnapshots =>
       $$PayrollSnapshotsTableTableManager(_db, _db.payrollSnapshots);
+  $$SiteNotesTableTableManager get siteNotes =>
+      $$SiteNotesTableTableManager(_db, _db.siteNotes);
   $$SyncQueueItemsTableTableManager get syncQueueItems =>
       $$SyncQueueItemsTableTableManager(_db, _db.syncQueueItems);
   $$AuditLogsTableTableManager get auditLogs =>

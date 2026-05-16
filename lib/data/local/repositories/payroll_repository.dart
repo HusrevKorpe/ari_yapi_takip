@@ -62,19 +62,23 @@ class PayrollRepository {
       start: start,
       end: end,
     );
-    final locationBonus = await _attendanceRepository.rangeLocationBonus(
+    final rawLocationBonus = await _attendanceRepository.rangeLocationBonus(
       workerId: worker.id,
       start: start,
       end: end,
     );
+    // Prim almayan personel için tüm prim hesaplamaları sıfırlanır;
+    // geçmiş aylar dahil tutar 0 gelir.
+    final locationBonus = worker.receivesBonus ? rawLocationBonus : 0.0;
 
-    final siteIds = attendanceEntries
-        .where((e) => e.siteId != null)
-        .map((e) => e.siteId!)
-        .toSet()
-        .toList();
+    final siteIds = <String>{
+      for (final e in attendanceEntries) ...[
+        if (e.siteId != null) e.siteId!,
+        if (e.secondSiteId != null) e.secondSiteId!,
+      ],
+    }.toList();
     final Map<String, double> bonusBySiteId;
-    if (siteIds.isNotEmpty) {
+    if (worker.receivesBonus && siteIds.isNotEmpty) {
       final sites = await (_db.select(_db.sites)
             ..where((s) => s.id.isIn(siteIds)))
           .get();
@@ -92,7 +96,9 @@ class PayrollRepository {
     final attendanceDays = parsedEntries.map((p) {
       final dayEquivalent = PayrollCalculator.workedEquivalent([p.status]);
       double dayBonus = 0;
-      if (p.status.requiresSite && p.entry.siteId != null) {
+      if (worker.receivesBonus &&
+          p.status.requiresSite &&
+          p.entry.siteId != null) {
         final bonus = bonusBySiteId[p.entry.siteId] ?? 0;
         if (bonus > 0) {
           dayBonus = bonus * dayEquivalent;

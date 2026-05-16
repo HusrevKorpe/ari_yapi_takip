@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../shared/formatters.dart';
 
 class MonthNavigator extends StatelessWidget {
@@ -17,34 +18,57 @@ class MonthNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
-          IconButton(
-            onPressed: onPrev,
-            icon: const Icon(Icons.chevron_left_rounded, size: 28),
-            color: const Color(0xFF1A6B5A),
-            splashRadius: 20,
+          _NavButton(
+            icon: Icons.chevron_left_rounded,
+            onTap: onPrev,
           ),
           Expanded(
-            child: Text(
-              formatMonth(month),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1A1A1A),
+            child: Center(
+              child: Text(
+                formatMonth(month),
+                style: AppTextStyles.cardTitle,
               ),
             ),
           ),
-          IconButton(
-            onPressed: onNext,
-            icon: const Icon(Icons.chevron_right_rounded, size: 28),
-            color: const Color(0xFF1A6B5A),
-            splashRadius: 20,
+          _NavButton(
+            icon: Icons.chevron_right_rounded,
+            onTap: onNext,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NavButton extends StatelessWidget {
+  const _NavButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceMuted,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, size: 24, color: AppColors.textPrimary),
+        ),
       ),
     );
   }

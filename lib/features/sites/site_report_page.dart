@@ -32,7 +32,7 @@ class _SiteReportPageState extends ConsumerState<SiteReportPage> {
       final ctx = ref.read(syncContextProvider);
       if (ctx.organizationId.isEmpty) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Organizasyon bulunamadi.')),
+          const SnackBar(content: Text('Organizasyon bulunamadı.')),
         );
         return;
       }
@@ -101,7 +101,7 @@ class _SiteReportPageState extends ConsumerState<SiteReportPage> {
               ),
             ),
             const Text(
-              'Santiye Raporu',
+              'Şantiye Raporu',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,

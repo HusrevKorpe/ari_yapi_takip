@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/design_tokens.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/formatters.dart';
-
-const _cardBg = Color(0xFFF5F5F6);
-const _accentTeal = Color(0xFF0A7E82);
-const _accentGoldDark = Color(0xFF8A7300);
 
 class WorkerTile extends StatelessWidget {
   const WorkerTile({
@@ -23,101 +20,105 @@ class WorkerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _cardBg,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 5,
-              height: 94,
-              decoration: const BoxDecoration(
-                color: _accentTeal,
-                borderRadius: BorderRadius.horizontal(
-                  left: Radius.circular(14),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-                child: Row(
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border),
+          ),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+          ),
+          child: Row(
+            children: [
+              _Avatar(initials: _initials(worker.fullName)),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: 62,
-                      height: 62,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE1E1E4),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _initials(worker.fullName),
-                        style: const TextStyle(
-                          color: _accentGoldDark,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                    Text(
+                      worker.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.cardTitle,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.payments_outlined,
+                          size: 14,
+                          color: AppColors.textTertiary,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            worker.fullName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              height: 1.05,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${formatMoney(worker.dailyWage)} / gün',
+                          style: AppTextStyles.caption.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'GUNLUK: ${formatMoney(worker.dailyWage)}',
-                            style: const TextStyle(
-                              color: Color(0xFF505050),
-                              fontSize: 13,
-                              letterSpacing: 0.6,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                        ),
+                        if (worker.receivesBonus) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          const _DotSeparator(),
+                          const SizedBox(width: AppSpacing.sm),
+                          _BonusChip(),
                         ],
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit, color: _accentTeal),
-                      tooltip: 'Calisani Duzenle',
-                      iconSize: 22,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(),
-                    ),
-                    const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete, color: Color(0xFFC81616)),
-                      tooltip: 'Calisani Sil',
-                      iconSize: 22,
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+              PopupMenuButton<_WorkerAction>(
+                tooltip: 'Daha fazla',
+                color: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  side: const BorderSide(color: AppColors.border),
+                ),
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  size: 20,
+                  color: AppColors.textSecondary,
+                ),
+                onSelected: (action) {
+                  switch (action) {
+                    case _WorkerAction.edit:
+                      onEdit();
+                    case _WorkerAction.delete:
+                      onDelete();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: _WorkerAction.edit,
+                    child: _MenuRow(
+                      icon: Icons.edit_outlined,
+                      label: 'Düzenle',
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: _WorkerAction.delete,
+                    child: _MenuRow(
+                      icon: Icons.delete_outline_rounded,
+                      label: 'Sil',
+                      destructive: true,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -137,5 +138,100 @@ class WorkerTile extends StatelessWidget {
     }
     return '${parts.first.characters.first}${parts.last.characters.first}'
         .toUpperCase();
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brandSurface, Color(0xFFFCEFB3)],
+        ),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        initials,
+        style: AppTextStyles.bodyStrong.copyWith(
+          color: AppColors.brandDark,
+          fontSize: 15,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+class _BonusChip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.brandSurface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        'Prim',
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.brandDark,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+}
+
+class _DotSeparator extends StatelessWidget {
+  const _DotSeparator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 3,
+      height: 3,
+      decoration: const BoxDecoration(
+        color: AppColors.textTertiary,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+enum _WorkerAction { edit, delete }
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = destructive ? AppColors.danger : AppColors.textPrimary;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: AppSpacing.sm),
+        Text(label, style: AppTextStyles.body.copyWith(color: color)),
+      ],
+    );
   }
 }

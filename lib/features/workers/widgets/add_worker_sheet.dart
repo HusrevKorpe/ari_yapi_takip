@@ -21,6 +21,7 @@ Future<void> showAddWorkerSheet(
   var selectedFrequency = existing != null
       ? PayFrequencyX.fromCode(existing.payFrequency)
       : PayFrequency.weekly;
+  var receivesBonus = existing?.receivesBonus ?? true;
 
   return showModalBottomSheet<void>(
     context: context,
@@ -103,7 +104,7 @@ Future<void> showAddWorkerSheet(
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          isEditing ? 'Calisani Duzenle' : 'Yeni Calisan',
+                          isEditing ? 'Çalışanı Düzenle' : 'Yeni Çalışan',
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w800,
@@ -113,8 +114,8 @@ Future<void> showAddWorkerSheet(
                         const SizedBox(height: 6),
                         Text(
                           isEditing
-                              ? 'Bilgileri guncelleyip kaydedin.'
-                              : 'Ekibe yeni kisiyi hizli ve temiz bir akista ekleyin.',
+                              ? 'Bilgileri güncelleyip kaydedin.'
+                              : 'Ekibe yeni kişiyi hızlı ve temiz bir akışta ekleyin.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: const Color(0xFF6E6759),
@@ -132,11 +133,11 @@ Future<void> showAddWorkerSheet(
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: _inputDecoration(label: 'Gunluk Ucret'),
+                          decoration: _inputDecoration(label: 'Günlük Ücret'),
                         ),
                         const SizedBox(height: 14),
                         Text(
-                          'Odeme Periyodu',
+                          'Ödeme Periyodu',
                           style: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(
                                 color: const Color(0xFF6E6759),
@@ -191,6 +192,57 @@ Future<void> showAddWorkerSheet(
                                 ),
                               );
                             }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFCF5),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFFE2D8BC),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Prim Aliyor',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E1A12),
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Kapali ise santiye primi 0 hesaplanir.',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFF6E6759),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Switch.adaptive(
+                                value: receivesBonus,
+                                activeTrackColor: _accentGoldDark,
+                                onChanged: (v) {
+                                  setDialogState(() {
+                                    receivesBonus = v;
+                                  });
+                                },
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -263,6 +315,7 @@ Future<void> showAddWorkerSheet(
                                         fullName: name,
                                         dailyWage: wage,
                                         payFrequency: selectedFrequency.code,
+                                        receivesBonus: receivesBonus,
                                         notes:
                                             noteController.text.trim().isEmpty
                                             ? null
