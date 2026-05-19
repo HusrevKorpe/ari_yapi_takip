@@ -26,6 +26,11 @@ class WorkerRepository {
     return query.get();
   }
 
+  Future<Worker?> findById(String workerId) {
+    return (_db.select(_db.workers)..where((w) => w.id.equals(workerId)))
+        .getSingleOrNull();
+  }
+
   Future<void> saveWorker({
     String? id,
     required String fullName,

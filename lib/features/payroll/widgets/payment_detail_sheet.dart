@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
+import '../../../data/local/repositories.dart';
 import '../../../shared/formatters.dart';
 import 'cancel_payment_dialog.dart';
+import 'day_detail_expander.dart';
 import 'payroll_shared.dart';
 
 Future<void> showPaymentDetailSheet(
@@ -27,10 +29,11 @@ class _PaymentDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshotAsync = ref.watch(_paymentSnapshotProvider(payment));
+    final daysAsync = ref.watch(paymentBreakdownProvider(payment));
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.6,
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
       ),
       decoration: const BoxDecoration(
         color: Color(0xFFF2F2F4),
@@ -61,6 +64,7 @@ class _PaymentDetailSheet extends ConsumerWidget {
               data: (snapshot) => _DetailBody(
                 payment: payment,
                 snapshot: snapshot,
+                days: daysAsync.asData?.value ?? const [],
               ),
             ),
           ),
@@ -80,10 +84,15 @@ final _paymentSnapshotProvider = FutureProvider.autoDispose
 });
 
 class _DetailBody extends StatelessWidget {
-  const _DetailBody({required this.payment, required this.snapshot});
+  const _DetailBody({
+    required this.payment,
+    required this.snapshot,
+    required this.days,
+  });
 
   final PayrollPayment payment;
   final PayrollSnapshot? snapshot;
+  final List<PayrollAttendanceDay> days;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +148,17 @@ class _DetailBody extends StatelessWidget {
             label: 'Net',
             value: formatMoney(snapshot!.net),
             valueColor: const Color(0xFF1A6B5A),
+          ),
+        ],
+        if (days.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDCDCDD)),
+            ),
+            child: DayDetailExpander(days: days),
           ),
         ],
         const SizedBox(height: 24),

@@ -83,6 +83,19 @@ final workerMonthAttendanceProvider = StreamProvider.autoDispose
           .watchWorkerEntriesInRange(workerId: args.workerId, start: start, end: end);
     });
 
+final paymentBreakdownProvider = FutureProvider.autoDispose
+    .family<List<PayrollAttendanceDay>, PayrollPayment>((ref, payment) async {
+  final worker =
+      await ref.watch(workerRepositoryProvider).findById(payment.workerId);
+  if (worker == null) return const [];
+  final result = await ref.watch(payrollRepositoryProvider).calculate(
+        worker: worker,
+        periodStart: payment.periodStart,
+        periodEnd: payment.periodEnd,
+      );
+  return result.attendanceDays;
+});
+
 final workerPayrollProvider =
     FutureProvider.autoDispose.family<PayrollResult?, Worker>((ref, worker) async {
   final lastPaidEnd =
