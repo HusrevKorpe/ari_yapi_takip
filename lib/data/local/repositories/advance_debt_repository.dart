@@ -107,6 +107,60 @@ class AdvanceDebtRepository {
     return query.watch();
   }
 
+  Future<void> update({
+    required String id,
+    required DateTime date,
+    required String type,
+    required double amount,
+    String? note,
+  }) async {
+    final now = DateTime.now();
+    final month = monthKey(date);
+
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.advanceDebts)
+            ..where((a) => a.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null) return;
+      final nextVersion = existing.syncVersion + 1;
+
+      await (_db.update(_db.advanceDebts)..where((a) => a.id.equals(id)))
+          .write(
+        AdvanceDebtsCompanion(
+          eventDate: Value(normalizeDay(date)),
+          type: Value(type),
+          amount: Value(amount),
+          note: Value(note),
+          settledMonth: Value(month),
+          updatedAt: Value(now),
+          lastModifiedBy: Value(_ctx.userId),
+          deviceId: Value(_ctx.deviceId),
+          syncVersion: Value(nextVersion),
+        ),
+      );
+
+      final saved = await (_db.select(_db.advanceDebts)
+            ..where((a) => a.id.equals(id)))
+          .getSingle();
+
+      await _db.upsertQueueItem(
+        id: _uuid.v4(),
+        entityType: 'advance_debt',
+        entityId: id,
+        action: 'upsert',
+        payload: saved.toSyncMap(),
+        organizationId: _ctx.organizationId,
+      );
+
+      await _db.addAudit(
+        id: _uuid.v4(),
+        entityType: 'advance_debt',
+        entityId: id,
+        message: 'Avans/Borc kaydi guncellendi',
+      );
+    });
+  }
+
   Future<void> delete({required String id}) async {
     final now = DateTime.now();
     await _db.transaction(() async {

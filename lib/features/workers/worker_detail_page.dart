@@ -270,6 +270,12 @@ class _AdvanceDebtTab extends ConsumerWidget {
                 itemCount: debts.length,
                 itemBuilder: (context, i) => _DebtRow(
                   debt: debts[i],
+                  onEdit: () => _showAdvanceDebtDialog(
+                    context,
+                    workerId: worker.id,
+                    type: debts[i].type,
+                    existing: debts[i],
+                  ),
                   onDelete: () => _confirmDelete(context, ref, debts[i]),
                 ),
               );
@@ -317,9 +323,14 @@ class _AdvanceDebtTab extends ConsumerWidget {
 }
 
 class _DebtRow extends StatelessWidget {
-  const _DebtRow({required this.debt, required this.onDelete});
+  const _DebtRow({
+    required this.debt,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final AdvanceDebt debt;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -413,6 +424,18 @@ class _DebtRow extends StatelessWidget {
             ),
             InkWell(
               borderRadius: BorderRadius.circular(AppRadius.sm),
+              onTap: onEdit,
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ),
+            InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               onTap: onDelete,
               child: const Padding(
                 padding: EdgeInsets.all(6),
@@ -462,8 +485,11 @@ class _AdvanceDebtActions extends StatelessWidget {
                   'Avans Ekle',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-                onPressed: () =>
-                    _showAddDialog(context, workerId: workerId, type: 'advance'),
+                onPressed: () => _showAdvanceDebtDialog(
+                  context,
+                  workerId: workerId,
+                  type: 'advance',
+                ),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -482,8 +508,11 @@ class _AdvanceDebtActions extends StatelessWidget {
                   'Borç Ekle',
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
-                onPressed: () =>
-                    _showAddDialog(context, workerId: workerId, type: 'debt'),
+                onPressed: () => _showAdvanceDebtDialog(
+                  context,
+                  workerId: workerId,
+                  type: 'debt',
+                ),
               ),
             ),
           ],
@@ -493,19 +522,28 @@ class _AdvanceDebtActions extends StatelessWidget {
   }
 }
 
-Future<void> _showAddDialog(
+Future<void> _showAdvanceDebtDialog(
   BuildContext context, {
   required String workerId,
   required String type,
+  AdvanceDebt? existing,
 }) async {
-  final amountController = TextEditingController();
-  final noteController = TextEditingController();
+  final isEdit = existing != null;
+  final amountController = TextEditingController(
+    text: isEdit ? existing.amount.toStringAsFixed(0) : '',
+  );
+  final noteController = TextEditingController(
+    text: isEdit ? (existing.note ?? '') : '',
+  );
 
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
+      final title = isEdit
+          ? (type == 'advance' ? 'Avansı Düzenle' : 'Borcu Düzenle')
+          : (type == 'advance' ? 'Avans Ekle' : 'Borç Ekle');
       return AlertDialog(
-        title: Text(type == 'advance' ? 'Avans Ekle' : 'Borç Ekle'),
+        title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -536,30 +574,44 @@ Future<void> _showAddDialog(
             builder: (_, ref, _) => FilledButton(
               onPressed: () async {
                 final amount =
-                    double.tryParse(amountController.text.trim()) ?? 0;
+                    double.tryParse(amountController.text.trim().replaceAll(',', '.')) ?? 0;
                 if (amount <= 0) return;
-                await ref.read(advanceDebtRepositoryProvider).add(
-                      workerId: workerId,
-                      date: DateTime.now(),
-                      type: type,
-                      amount: amount,
-                      note: noteController.text.trim().isEmpty
-                          ? null
-                          : noteController.text.trim(),
-                    );
+                final note = noteController.text.trim().isEmpty
+                    ? null
+                    : noteController.text.trim();
+                final repo = ref.read(advanceDebtRepositoryProvider);
+                if (isEdit) {
+                  await repo.update(
+                    id: existing.id,
+                    date: existing.eventDate,
+                    type: type,
+                    amount: amount,
+                    note: note,
+                  );
+                } else {
+                  await repo.add(
+                    workerId: workerId,
+                    date: DateTime.now(),
+                    type: type,
+                    amount: amount,
+                    note: note,
+                  );
+                }
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext);
                 }
                 if (context.mounted) {
                   showSuccessSnackBar(
                     context,
-                    type == 'advance'
-                        ? 'Avans kaydedildi'
-                        : 'Borç kaydedildi',
+                    isEdit
+                        ? 'Kayıt güncellendi'
+                        : (type == 'advance'
+                            ? 'Avans kaydedildi'
+                            : 'Borç kaydedildi'),
                   );
                 }
               },
-              child: const Text('Kaydet'),
+              child: Text(isEdit ? 'Güncelle' : 'Kaydet'),
             ),
           ),
         ],

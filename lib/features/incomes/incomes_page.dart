@@ -59,6 +59,11 @@ class IncomesPage extends ConsumerWidget {
                       child: IncomeRowCard(
                         income: income,
                         accent: AppColors.success,
+                        onEdit: () => showAddIncomeSheet(
+                          context,
+                          ref,
+                          existing: income,
+                        ),
                         onDelete: () => confirmDeleteIncome(
                           context,
                           ref,

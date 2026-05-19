@@ -59,6 +59,11 @@ class ExpensesPage extends ConsumerWidget {
                       child: ExpenseRowCard(
                         expense: expense,
                         accent: AppColors.danger,
+                        onEdit: () => showAddExpenseSheet(
+                          context,
+                          ref,
+                          existing: expense,
+                        ),
                         onDelete: () => confirmDeleteExpense(
                           context,
                           ref,

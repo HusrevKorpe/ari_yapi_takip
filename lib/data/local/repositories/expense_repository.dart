@@ -60,6 +60,59 @@ class ExpenseRepository {
     });
   }
 
+  Future<void> updateExpense({
+    required String expenseId,
+    required DateTime date,
+    required double amount,
+    required String category,
+    String? siteId,
+    String? description,
+  }) async {
+    final now = DateTime.now();
+    final normalized = normalizeDay(date);
+
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.expenses)
+            ..where((e) => e.id.equals(expenseId)))
+          .getSingleOrNull();
+      if (existing == null) return;
+      final nextVersion = existing.syncVersion + 1;
+
+      await (_db.update(_db.expenses)..where((e) => e.id.equals(expenseId)))
+          .write(ExpensesCompanion(
+        expenseDate: Value(normalized),
+        amount: Value(amount),
+        category: Value(category),
+        siteId: Value(siteId),
+        description: Value(description),
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ));
+
+      final saved = await (_db.select(_db.expenses)
+            ..where((e) => e.id.equals(expenseId)))
+          .getSingle();
+
+      await _db.upsertQueueItem(
+        id: _uuid.v4(),
+        entityType: 'expense',
+        entityId: expenseId,
+        action: 'upsert',
+        payload: saved.toSyncMap(),
+        organizationId: _ctx.organizationId,
+      );
+
+      await _db.addAudit(
+        id: _uuid.v4(),
+        entityType: 'expense',
+        entityId: expenseId,
+        message: 'Gider kaydi guncellendi',
+      );
+    });
+  }
+
   Future<void> deleteExpense({required String expenseId}) async {
     final now = DateTime.now();
     await _db.transaction(() async {

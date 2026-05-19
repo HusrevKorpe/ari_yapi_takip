@@ -9,11 +9,13 @@ class IncomeRowCard extends StatelessWidget {
     super.key,
     required this.income,
     required this.accent,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final Income income;
   final Color accent;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -73,6 +75,13 @@ class IncomeRowCard extends StatelessWidget {
               fontSize: 16,
               color: accent,
             ),
+          ),
+          IconButton(
+            onPressed: onEdit,
+            tooltip: 'Geliri düzenle',
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            color: AppColors.textTertiary,
+            visualDensity: VisualDensity.compact,
           ),
           IconButton(
             onPressed: onDelete,

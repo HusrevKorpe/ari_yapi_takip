@@ -9,11 +9,13 @@ class ExpenseRowCard extends StatelessWidget {
     super.key,
     required this.expense,
     required this.accent,
+    required this.onEdit,
     required this.onDelete,
   });
 
   final Expense expense;
   final Color accent;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -73,6 +75,13 @@ class ExpenseRowCard extends StatelessWidget {
               fontSize: 16,
               color: accent,
             ),
+          ),
+          IconButton(
+            onPressed: onEdit,
+            tooltip: 'Gideri düzenle',
+            icon: const Icon(Icons.edit_outlined, size: 20),
+            color: AppColors.textTertiary,
+            visualDensity: VisualDensity.compact,
           ),
           IconButton(
             onPressed: onDelete,

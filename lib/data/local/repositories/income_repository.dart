@@ -60,6 +60,59 @@ class IncomeRepository {
     });
   }
 
+  Future<void> updateIncome({
+    required String incomeId,
+    required DateTime date,
+    required double amount,
+    required String category,
+    String? siteId,
+    String? description,
+  }) async {
+    final now = DateTime.now();
+    final normalized = normalizeDay(date);
+
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.incomes)
+            ..where((i) => i.id.equals(incomeId)))
+          .getSingleOrNull();
+      if (existing == null) return;
+      final nextVersion = existing.syncVersion + 1;
+
+      await (_db.update(_db.incomes)..where((i) => i.id.equals(incomeId)))
+          .write(IncomesCompanion(
+        incomeDate: Value(normalized),
+        amount: Value(amount),
+        category: Value(category),
+        siteId: Value(siteId),
+        description: Value(description),
+        updatedAt: Value(now),
+        lastModifiedBy: Value(_ctx.userId),
+        deviceId: Value(_ctx.deviceId),
+        syncVersion: Value(nextVersion),
+      ));
+
+      final saved = await (_db.select(_db.incomes)
+            ..where((i) => i.id.equals(incomeId)))
+          .getSingle();
+
+      await _db.upsertQueueItem(
+        id: _uuid.v4(),
+        entityType: 'income',
+        entityId: incomeId,
+        action: 'upsert',
+        payload: saved.toSyncMap(),
+        organizationId: _ctx.organizationId,
+      );
+
+      await _db.addAudit(
+        id: _uuid.v4(),
+        entityType: 'income',
+        entityId: incomeId,
+        message: 'Gelir kaydi guncellendi',
+      );
+    });
+  }
+
   Future<void> deleteIncome({required String incomeId}) async {
     final now = DateTime.now();
     await _db.transaction(() async {

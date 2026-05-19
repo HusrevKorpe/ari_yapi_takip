@@ -2,11 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
+import '../../../data/local/app_database.dart';
 
-Future<void> showAddExpenseSheet(BuildContext context, WidgetRef ref) {
-  final amountController = TextEditingController();
-  final categoryController = TextEditingController();
-  final descriptionController = TextEditingController();
+Future<void> showAddExpenseSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  Expense? existing,
+}) {
+  final isEdit = existing != null;
+  final amountController = TextEditingController(
+    text: isEdit ? existing.amount.toStringAsFixed(0) : '',
+  );
+  final categoryController = TextEditingController(
+    text: isEdit ? existing.category : '',
+  );
+  final descriptionController = TextEditingController(
+    text: isEdit ? (existing.description ?? '') : '',
+  );
 
   return showModalBottomSheet<void>(
     context: context,
@@ -75,9 +87,9 @@ Future<void> showAddExpenseSheet(BuildContext context, WidgetRef ref) {
                         color: const Color(0xFFEDE1A8),
                         borderRadius: BorderRadius.circular(999),
                       ),
-                      child: const Text(
-                        'YENI KAYIT',
-                        style: TextStyle(
+                      child: Text(
+                        isEdit ? 'DUZENLEME' : 'YENI KAYIT',
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.1,
@@ -87,7 +99,7 @@ Future<void> showAddExpenseSheet(BuildContext context, WidgetRef ref) {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      'Gider Ekle',
+                      isEdit ? 'Gideri Düzenle' : 'Gider Ekle',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w800,
@@ -170,27 +182,36 @@ Future<void> showAddExpenseSheet(BuildContext context, WidgetRef ref) {
                             onPressed: () async {
                               final amount =
                                   double.tryParse(
-                                    amountController.text.trim(),
+                                    amountController.text.trim().replaceAll(',', '.'),
                                   ) ??
                                   0;
                               final category = categoryController.text.trim();
                               if (amount <= 0 || category.isEmpty) {
                                 return;
                               }
+                              final description =
+                                  descriptionController.text.trim().isEmpty
+                                      ? null
+                                      : descriptionController.text.trim();
 
-                              await ref
-                                  .read(expenseRepositoryProvider)
-                                  .addExpense(
-                                    date: DateTime.now(),
-                                    amount: amount,
-                                    category: category,
-                                    description:
-                                        descriptionController.text
-                                                .trim()
-                                                .isEmpty
-                                            ? null
-                                            : descriptionController.text.trim(),
-                                  );
+                              final repo = ref.read(expenseRepositoryProvider);
+                              if (isEdit) {
+                                await repo.updateExpense(
+                                  expenseId: existing.id,
+                                  date: existing.expenseDate,
+                                  amount: amount,
+                                  category: category,
+                                  siteId: existing.siteId,
+                                  description: description,
+                                );
+                              } else {
+                                await repo.addExpense(
+                                  date: DateTime.now(),
+                                  amount: amount,
+                                  category: category,
+                                  description: description,
+                                );
+                              }
 
                               if (context.mounted) {
                                 Navigator.pop(context);
@@ -206,9 +227,9 @@ Future<void> showAddExpenseSheet(BuildContext context, WidgetRef ref) {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            child: const Text(
-                              'Kaydet',
-                              style: TextStyle(
+                            child: Text(
+                              isEdit ? 'Güncelle' : 'Kaydet',
+                              style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.2,
                               ),
