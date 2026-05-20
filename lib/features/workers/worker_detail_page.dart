@@ -41,7 +41,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(widget.worker.fullName),
         bottom: PreferredSize(
@@ -535,6 +535,7 @@ Future<void> _showAdvanceDebtDialog(
   final noteController = TextEditingController(
     text: isEdit ? (existing.note ?? '') : '',
   );
+  var selectedDate = isEdit ? existing.eventDate : DateTime.now();
 
   await showDialog<void>(
     context: context,
@@ -542,79 +543,139 @@ Future<void> _showAdvanceDebtDialog(
       final title = isEdit
           ? (type == 'advance' ? 'Avansı Düzenle' : 'Borcu Düzenle')
           : (type == 'advance' ? 'Avans Ekle' : 'Borç Ekle');
-      return AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Tutar',
-                border: OutlineInputBorder(),
+      return StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountController,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Tutar',
+                  border: OutlineInputBorder(),
+                ),
               ),
+              const SizedBox(height: AppSpacing.sm),
+              TextField(
+                controller: noteController,
+                decoration: const InputDecoration(
+                  labelText: 'Not',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: dialogContext,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                    locale: const Locale('tr', 'TR'),
+                  );
+                  if (picked != null) {
+                    setState(() => selectedDate = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm + 4,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Tarih',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        formatDate(selectedDate),
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      const Icon(
+                        Icons.edit_calendar_outlined,
+                        size: 16,
+                        color: AppColors.brand,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('İptal'),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              controller: noteController,
-              decoration: const InputDecoration(
-                labelText: 'Not',
-                border: OutlineInputBorder(),
+            Consumer(
+              builder: (_, ref, _) => FilledButton(
+                onPressed: () async {
+                  final amount = double.tryParse(
+                          amountController.text.trim().replaceAll(',', '.')) ??
+                      0;
+                  if (amount <= 0) return;
+                  final note = noteController.text.trim().isEmpty
+                      ? null
+                      : noteController.text.trim();
+                  final repo = ref.read(advanceDebtRepositoryProvider);
+                  if (isEdit) {
+                    await repo.update(
+                      id: existing.id,
+                      date: selectedDate,
+                      type: type,
+                      amount: amount,
+                      note: note,
+                    );
+                  } else {
+                    await repo.add(
+                      workerId: workerId,
+                      date: selectedDate,
+                      type: type,
+                      amount: amount,
+                      note: note,
+                    );
+                  }
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
+                  if (context.mounted) {
+                    showSuccessSnackBar(
+                      context,
+                      isEdit
+                          ? 'Kayıt güncellendi'
+                          : (type == 'advance'
+                              ? 'Avans kaydedildi'
+                              : 'Borç kaydedildi'),
+                    );
+                  }
+                },
+                child: Text(isEdit ? 'Güncelle' : 'Kaydet'),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('İptal'),
-          ),
-          Consumer(
-            builder: (_, ref, _) => FilledButton(
-              onPressed: () async {
-                final amount =
-                    double.tryParse(amountController.text.trim().replaceAll(',', '.')) ?? 0;
-                if (amount <= 0) return;
-                final note = noteController.text.trim().isEmpty
-                    ? null
-                    : noteController.text.trim();
-                final repo = ref.read(advanceDebtRepositoryProvider);
-                if (isEdit) {
-                  await repo.update(
-                    id: existing.id,
-                    date: existing.eventDate,
-                    type: type,
-                    amount: amount,
-                    note: note,
-                  );
-                } else {
-                  await repo.add(
-                    workerId: workerId,
-                    date: DateTime.now(),
-                    type: type,
-                    amount: amount,
-                    note: note,
-                  );
-                }
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-                if (context.mounted) {
-                  showSuccessSnackBar(
-                    context,
-                    isEdit
-                        ? 'Kayıt güncellendi'
-                        : (type == 'advance'
-                            ? 'Avans kaydedildi'
-                            : 'Borç kaydedildi'),
-                  );
-                }
-              },
-              child: Text(isEdit ? 'Güncelle' : 'Kaydet'),
-            ),
-          ),
-        ],
       );
     },
   );

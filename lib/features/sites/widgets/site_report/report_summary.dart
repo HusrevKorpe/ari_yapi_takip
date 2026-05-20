@@ -1,47 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers.dart';
 import '../../../../data/local/repositories.dart';
 import '../../../../shared/formatters.dart';
+import 'date_filter_sheet.dart';
 
-class DateRangeChip extends StatelessWidget {
-  const DateRangeChip({super.key, required this.first, required this.last});
+class DateRangeChip extends ConsumerWidget {
+  const DateRangeChip({
+    super.key,
+    required this.siteId,
+    required this.first,
+    required this.last,
+  });
 
+  final String siteId;
   final DateTime first;
   final DateTime last;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(siteReportDateFilterProvider(siteId));
+    final hasFilter = filter != null && filter.isNotEmpty;
+
     final sameDay = first.year == last.year &&
         first.month == last.month &&
         first.day == last.day;
-    final label = sameDay
-        ? formatDayMonth(first)
-        : '${formatDate(first)} — ${formatDate(last)}';
+    final String label;
+    if (hasFilter) {
+      final count = filter.length;
+      if (count == 1) {
+        label = formatDayMonth(first);
+      } else {
+        label = '$count gün • ${formatDate(first)} — ${formatDate(last)}';
+      }
+    } else {
+      label = sameDay
+          ? formatDayMonth(first)
+          : '${formatDate(first)} — ${formatDate(last)}';
+    }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
         color: const Color(0xFFDCEEE6),
         borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.calendar_today_rounded,
-            size: 14,
-            color: Color(0xFF1A6B5A),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => showSiteReportDateFilterSheet(
+            context,
+            siteId: siteId,
+            initialMonth: hasFilter ? first : DateTime.now(),
           ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A6B5A),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 8, hasFilter ? 4 : 12, 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.calendar_today_rounded,
+                  size: 14,
+                  color: Color(0xFF1A6B5A),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A6B5A),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  hasFilter
+                      ? Icons.expand_more_rounded
+                      : Icons.tune_rounded,
+                  size: 16,
+                  color: const Color(0xFF1A6B5A),
+                ),
+                if (hasFilter)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => ref
+                        .read(siteReportDateFilterProvider(siteId).notifier)
+                        .state = null,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 14,
+                        color: Color(0xFF1A6B5A),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

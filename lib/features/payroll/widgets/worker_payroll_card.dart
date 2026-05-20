@@ -21,6 +21,7 @@ class WorkerPayrollCard extends ConsumerWidget {
     final lastPaidEnd = ref
         .watch(lastPaymentEndProvider(worker.id))
         .valueOrNull;
+    final payrollAsync = ref.watch(workerPayrollProvider(worker));
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -35,8 +36,17 @@ class WorkerPayrollCard extends ConsumerWidget {
 
     final pendingDays = today.difference(periodStart).inDays + 1;
     final hasPending = pendingDays > 0;
+    final result = payrollAsync.valueOrNull;
+    final net = result?.net ?? 0;
+    final isLoading = payrollAsync.isLoading && !payrollAsync.hasValue;
+    final negative = net < 0;
 
-    final accent = hasPending ? AppColors.brand : AppColors.success;
+    final accent = hasPending
+        ? (negative ? AppColors.danger : AppColors.brand)
+        : AppColors.success;
+    final accentSurface = hasPending
+        ? (negative ? AppColors.dangerLight : AppColors.brandSurface)
+        : AppColors.successLight;
 
     return Material(
       color: AppColors.background,
@@ -49,7 +59,7 @@ class WorkerPayrollCard extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
               color: hasPending
-                  ? AppColors.brand.withValues(alpha: 0.4)
+                  ? accent.withValues(alpha: 0.4)
                   : AppColors.border,
             ),
           ),
@@ -59,19 +69,11 @@ class WorkerPayrollCard extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(
-                  Icons.payments_rounded,
-                  size: 20,
-                  color: accent,
-                ),
+              _LeadingBadge(
+                hasPending: hasPending,
+                pendingDays: pendingDays,
+                color: accent,
+                surface: accentSurface,
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -102,42 +104,7 @@ class WorkerPayrollCard extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               if (hasPending)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.brandSurface,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$pendingDays',
-                        style: AppTextStyles.bodyStrong.copyWith(
-                          color: AppColors.brand,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        'gün',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.brand,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: AppColors.success,
-                  size: 20,
-                ),
+                _NetAmount(net: net, color: accent, loading: isLoading),
               const SizedBox(width: AppSpacing.xs),
               const Icon(
                 Icons.chevron_right_rounded,
@@ -147,6 +114,103 @@ class WorkerPayrollCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LeadingBadge extends StatelessWidget {
+  const _LeadingBadge({
+    required this.hasPending,
+    required this.pendingDays,
+    required this.color,
+    required this.surface,
+  });
+
+  final bool hasPending;
+  final int pendingDays;
+  final Color color;
+  final Color surface;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: hasPending
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$pendingDays',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'gün',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    height: 1,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            )
+          : Icon(
+              Icons.check_circle_rounded,
+              size: 22,
+              color: color,
+            ),
+    );
+  }
+}
+
+class _NetAmount extends StatelessWidget {
+  const _NetAmount({
+    required this.net,
+    required this.color,
+    required this.loading,
+  });
+
+  final double net;
+  final Color color;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return SizedBox(
+        width: 64,
+        height: 18,
+        child: Center(
+          child: SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6,
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ),
+      );
+    }
+    return Text(
+      formatMoney(net),
+      style: AppTextStyles.bodyStrong.copyWith(
+        color: color,
+        fontSize: 15,
       ),
     );
   }

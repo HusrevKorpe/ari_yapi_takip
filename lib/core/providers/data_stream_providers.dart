@@ -19,9 +19,17 @@ class WorkerLifetimeStats {
   final double totalPaid;
 }
 
+final siteReportDateFilterProvider =
+    StateProvider.autoDispose.family<Set<DateTime>?, String>(
+  (ref, siteId) => null,
+);
+
 final siteReportProvider =
     FutureProvider.autoDispose.family<SiteReportData, String>((ref, siteId) {
-  return ref.watch(siteReportRepositoryProvider).getReport(siteId);
+  final dates = ref.watch(siteReportDateFilterProvider(siteId));
+  return ref
+      .watch(siteReportRepositoryProvider)
+      .getReport(siteId, selectedDates: dates);
 });
 
 final lastPaymentEndProvider =

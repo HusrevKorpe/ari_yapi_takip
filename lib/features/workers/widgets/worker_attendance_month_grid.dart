@@ -146,7 +146,7 @@ class _MonthTable extends StatelessWidget {
               vertical: AppSpacing.sm,
             ),
             decoration: const BoxDecoration(
-              color: AppColors.surface,
+              color: AppColors.background,
               border: Border(
                 top: BorderSide(color: AppColors.border),
               ),

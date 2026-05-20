@@ -9,20 +9,45 @@ class SiteReportRepository {
 
   final AppDatabase _db;
 
-  Future<SiteReportData> getReport(String siteId) async {
+  Future<SiteReportData> getReport(
+    String siteId, {
+    Set<DateTime>? selectedDates,
+  }) async {
     final site = await (_db.select(_db.sites)
           ..where((s) => s.id.equals(siteId)))
         .getSingle();
 
-    final entries = await (_db.select(_db.attendanceEntries)
+    final normalizedFilter = selectedDates == null || selectedDates.isEmpty
+        ? null
+        : selectedDates
+            .map((d) => DateTime(d.year, d.month, d.day))
+            .toSet();
+
+    final allEntries = await (_db.select(_db.attendanceEntries)
           ..where((a) =>
               (a.siteId.equals(siteId) | a.secondSiteId.equals(siteId)) &
               a.deletedAt.isNull())
           ..orderBy([(a) => OrderingTerm(expression: a.workDate)]))
         .get();
 
-    final firstWorkDate = entries.isEmpty ? null : entries.first.workDate;
-    final lastWorkDate = entries.isEmpty ? null : entries.last.workDate;
+    final entries = normalizedFilter == null
+        ? allEntries
+        : allEntries.where((e) {
+            final d =
+                DateTime(e.workDate.year, e.workDate.month, e.workDate.day);
+            return normalizedFilter.contains(d);
+          }).toList();
+
+    final DateTime? firstWorkDate;
+    final DateTime? lastWorkDate;
+    if (normalizedFilter != null) {
+      final sorted = normalizedFilter.toList()..sort();
+      firstWorkDate = sorted.first;
+      lastWorkDate = sorted.last;
+    } else {
+      firstWorkDate = entries.isEmpty ? null : entries.first.workDate;
+      lastWorkDate = entries.isEmpty ? null : entries.last.workDate;
+    }
 
     final workerIds = entries.map((e) => e.workerId).toSet().toList();
     final List<Worker> workers;
@@ -73,9 +98,19 @@ class SiteReportRepository {
     final totalWages =
         workerRows.fold<double>(0, (s, r) => s + r.totalWage);
 
-    final expenses = await (_db.select(_db.expenses)
+    final allExpenses = await (_db.select(_db.expenses)
           ..where((e) => e.siteId.equals(siteId) & e.deletedAt.isNull()))
         .get();
+    final expenses = normalizedFilter == null
+        ? allExpenses
+        : allExpenses.where((e) {
+            final d = DateTime(
+              e.expenseDate.year,
+              e.expenseDate.month,
+              e.expenseDate.day,
+            );
+            return normalizedFilter.contains(d);
+          }).toList();
     final categoryTotals = <String, double>{};
     for (final e in expenses) {
       categoryTotals[e.category] =

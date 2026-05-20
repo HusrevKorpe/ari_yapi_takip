@@ -21,6 +21,7 @@ class ReportBody extends StatelessWidget {
       children: [
         if (report.firstWorkDate != null) ...[
           DateRangeChip(
+            siteId: report.site.id,
             first: report.firstWorkDate!,
             last: report.lastWorkDate!,
           ),
