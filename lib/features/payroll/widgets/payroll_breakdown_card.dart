@@ -56,6 +56,16 @@ class PayrollBreakdownCard extends StatelessWidget {
                     value: '-${formatMoney(result.deductions)}',
                     valueColor: const Color(0xFFB60A0A),
                   ),
+                ] else if (result.deductions < 0) ...[
+                  // Borç (işveren çalışana borçlu) avansı aştığında deductions
+                  // negatif olur ve net brütten büyük çıkar. Bu artışı gizlemeyip
+                  // ayrı bir "Alacak" satırı olarak gösteriyoruz.
+                  const SizedBox(height: 10),
+                  PayrollSummaryRow(
+                    label: 'Alacak (Avans+Borç)',
+                    value: '+${formatMoney(-result.deductions)}',
+                    valueColor: const Color(0xFF1A6B5A),
+                  ),
                 ],
               ],
             ),

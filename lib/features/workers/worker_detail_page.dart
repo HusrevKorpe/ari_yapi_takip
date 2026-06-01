@@ -183,6 +183,15 @@ class _PayrollSummaryCard extends StatelessWidget {
                     value: '-${formatMoney(result.deductions)}',
                     valueColor: AppColors.danger,
                   ),
+                ] else if (result.deductions < 0) ...[
+                  // Borç avansı aştığında net brütten büyük olur; bu artışı
+                  // gizlemeyip ayrı bir "Alacak" satırı olarak gösteriyoruz.
+                  const SizedBox(height: AppSpacing.sm),
+                  PayrollSummaryRow(
+                    label: 'Alacak (Avans+Borç)',
+                    value: '+${formatMoney(-result.deductions)}',
+                    valueColor: AppColors.success,
+                  ),
                 ],
               ],
             ),

@@ -138,11 +138,20 @@ class _DetailBody extends StatelessWidget {
             value: formatMoney(snapshot!.gross),
           ),
           const SizedBox(height: 12),
-          PayrollSummaryRow(
-            label: 'Kesinti',
-            value: formatMoney(snapshot!.deductions),
-            valueColor: const Color(0xFFB60A0A),
-          ),
+          if (snapshot!.deductions < 0)
+            // Borç avansı aştığında kesinti negatiftir; net'i artıran bu tutarı
+            // "Kesinti" gibi göstermeyip ayrı bir "Alacak" satırı veriyoruz.
+            PayrollSummaryRow(
+              label: 'Alacak (Avans+Borç)',
+              value: '+${formatMoney(-snapshot!.deductions)}',
+              valueColor: const Color(0xFF1A6B5A),
+            )
+          else
+            PayrollSummaryRow(
+              label: 'Kesinti',
+              value: formatMoney(snapshot!.deductions),
+              valueColor: const Color(0xFFB60A0A),
+            ),
           const SizedBox(height: 12),
           PayrollSummaryRow(
             label: 'Net',

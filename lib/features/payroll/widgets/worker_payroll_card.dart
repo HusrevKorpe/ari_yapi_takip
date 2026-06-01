@@ -23,30 +23,54 @@ class WorkerPayrollCard extends ConsumerWidget {
         .valueOrNull;
     final payrollAsync = ref.watch(workerPayrollProvider(worker));
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-
-    final periodStart = lastPaidEnd != null
-        ? DateTime(lastPaidEnd.year, lastPaidEnd.month, lastPaidEnd.day + 1)
-        : DateTime(
-            worker.createdAt.year,
-            worker.createdAt.month,
-            worker.createdAt.day,
-          );
-
-    final pendingDays = today.difference(periodStart).inDays + 1;
-    final hasPending = pendingDays > 0;
     final result = payrollAsync.valueOrNull;
-    final net = result?.net ?? 0;
     final isLoading = payrollAsync.isLoading && !payrollAsync.hasValue;
-    final negative = net < 0;
+    final net = result?.net ?? 0;
 
-    final accent = hasPending
-        ? (negative ? AppColors.danger : AppColors.brand)
-        : AppColors.success;
-    final accentSurface = hasPending
-        ? (negative ? AppColors.dangerLight : AppColors.brandSurface)
-        : AppColors.successLight;
+    // "Bekleyen ödeme" tanımı header'daki _payrollSummaryProvider ile birebir
+    // aynıdır: yalnızca net > 0. Böylece özetteki çalışan sayısı/toplam tutar ile
+    // listede vurgulanan kartlar her zaman tutarlı kalır. net <= 0 olan açık
+    // dönemler (ör. avans yevmiyeyi aşmış) ödeme bekletmez; net < 0 ise bilgi
+    // amaçlı kırmızı, net == 0 ya da dönem kapalıysa "güncel" gösterilir.
+    final hasPending = net > 0;
+    final negative = net < 0;
+    final showOpen = hasPending || negative;
+    // Açık dönemin gün sayısını doğrudan hesap sonucundan türetiyoruz; böylece
+    // header ile aynı periyot kaynağını kullanır (kart yerel periodStart tahmini
+    // yapmaz).
+    final pendingDays = result == null
+        ? 0
+        : result.periodEnd.difference(result.periodStart).inDays + 1;
+
+    final Color accent;
+    final Color accentSurface;
+    if (isLoading) {
+      accent = AppColors.textTertiary;
+      accentSurface = AppColors.surfaceMuted;
+    } else if (hasPending) {
+      accent = AppColors.brand;
+      accentSurface = AppColors.brandSurface;
+    } else if (negative) {
+      accent = AppColors.danger;
+      accentSurface = AppColors.dangerLight;
+    } else {
+      accent = AppColors.success;
+      accentSurface = AppColors.successLight;
+    }
+
+    final String subtitle;
+    final Color subtitleColor;
+    if (isLoading) {
+      subtitle = 'Hesaplanıyor…';
+      subtitleColor = AppColors.textTertiary;
+    } else if (showOpen) {
+      subtitle =
+          'Son ödeme: ${lastPaidEnd != null ? formatDate(lastPaidEnd) : "—"}';
+      subtitleColor = AppColors.textSecondary;
+    } else {
+      subtitle = 'Güncel';
+      subtitleColor = AppColors.success;
+    }
 
     return Material(
       color: AppColors.background,
@@ -58,7 +82,7 @@ class WorkerPayrollCard extends ConsumerWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
-              color: hasPending
+              color: showOpen
                   ? accent.withValues(alpha: 0.4)
                   : AppColors.border,
             ),
@@ -70,7 +94,8 @@ class WorkerPayrollCard extends ConsumerWidget {
           child: Row(
             children: [
               _LeadingBadge(
-                hasPending: hasPending,
+                isLoading: isLoading,
+                showDays: showOpen,
                 pendingDays: pendingDays,
                 color: accent,
                 surface: accentSurface,
@@ -89,13 +114,9 @@ class WorkerPayrollCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      hasPending
-                          ? 'Son ödeme: ${lastPaidEnd != null ? formatDate(lastPaidEnd) : "—"}'
-                          : 'Güncel',
+                      subtitle,
                       style: AppTextStyles.caption.copyWith(
-                        color: hasPending
-                            ? AppColors.textSecondary
-                            : AppColors.success,
+                        color: subtitleColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -103,7 +124,7 @@ class WorkerPayrollCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              if (hasPending)
+              if (isLoading || showOpen)
                 _NetAmount(net: net, color: accent, loading: isLoading),
               const SizedBox(width: AppSpacing.xs),
               const Icon(
@@ -121,13 +142,15 @@ class WorkerPayrollCard extends ConsumerWidget {
 
 class _LeadingBadge extends StatelessWidget {
   const _LeadingBadge({
-    required this.hasPending,
+    required this.isLoading,
+    required this.showDays,
     required this.pendingDays,
     required this.color,
     required this.surface,
   });
 
-  final bool hasPending;
+  final bool isLoading;
+  final bool showDays;
   final int pendingDays;
   final Color color;
   final Color surface;
@@ -142,37 +165,52 @@ class _LeadingBadge extends StatelessWidget {
         color: surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: hasPending
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$pendingDays',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: color,
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'gün',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                    height: 1,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            )
-          : Icon(
-              Icons.check_circle_rounded,
-              size: 22,
+      child: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading) {
+      return SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation(color),
+        ),
+      );
+    }
+    if (showDays) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$pendingDays',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
               color: color,
+              height: 1,
             ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            'gün',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: color,
+              height: 1,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      );
+    }
+    return Icon(
+      Icons.check_circle_rounded,
+      size: 22,
+      color: color,
     );
   }
 }
