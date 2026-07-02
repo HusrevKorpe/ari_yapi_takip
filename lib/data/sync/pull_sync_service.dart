@@ -101,6 +101,9 @@ class PullSyncService {
       case 'income':
         await _upsertIncome(data);
         return;
+      case 'partner_payment':
+        await _upsertPartnerPayment(data);
+        return;
       case 'advance_debt':
         await _upsertAdvanceDebt(data);
         return;
@@ -398,6 +401,53 @@ class PullSyncService {
         );
   }
 
+  Future<void> _upsertPartnerPayment(Map<String, dynamic> data) async {
+    final id = _str(data['id']);
+    if (id.isEmpty) return;
+    if (await _hasPendingPush('partner_payment', id)) {
+      return;
+    }
+    final remoteVersion = _int(
+      _value(data, 'senkronSurumu', 'syncVersion'),
+      fallback: 1,
+    );
+    final existing = await (_db.select(
+      _db.partnerPayments,
+    )..where((p) => p.id.equals(id))).getSingleOrNull();
+    if (existing != null) {
+      if (_isEcho(data, remoteVersion, existing.syncVersion)) return;
+      if (remoteVersion < existing.syncVersion) return;
+    }
+
+    await _db
+        .into(_db.partnerPayments)
+        .insertOnConflictUpdate(
+          PartnerPaymentsCompanion.insert(
+            id: id,
+            paymentDate: _date(_value(data, 'odemeTarihi', 'paymentDate')),
+            amount: _double(_value(data, 'tutar', 'amount')),
+            partnerName: _str(_value(data, 'ortakAdi', 'partnerName')),
+            description: Value(
+              _nullableStr(_value(data, 'aciklama', 'description')),
+            ),
+            createdAt: Value(
+              _date(_value(data, 'olusturulmaTarihi', 'createdAt')),
+            ),
+            updatedAt: Value(
+              _date(_value(data, 'guncellenmeTarihi', 'updatedAt')),
+            ),
+            deletedAt: Value(
+              _nullableDate(_value(data, 'silinmeTarihi', 'deletedAt')),
+            ),
+            lastModifiedBy: Value(
+              _str(_value(data, 'sonDegistiren', 'lastModifiedBy')),
+            ),
+            deviceId: Value(_str(_value(data, 'cihazId', 'deviceId'))),
+            syncVersion: Value(remoteVersion),
+          ),
+        );
+  }
+
   Future<void> _upsertAdvanceDebt(Map<String, dynamic> data) async {
     final id = _str(data['id']);
     if (id.isEmpty) return;
@@ -509,6 +559,9 @@ class PullSyncService {
       if (remoteVersion < existing.syncVersion) return;
     }
 
+    final rawDays = _value(data, 'gunlukDetay', 'attendanceDaysJson');
+    final daysJson = rawDays is String && rawDays.isNotEmpty ? rawDays : null;
+
     await _db
         .into(_db.payrollSnapshots)
         .insertOnConflictUpdate(
@@ -522,6 +575,7 @@ class PullSyncService {
             gross: _double(_value(data, 'brut', 'gross')),
             deductions: _double(_value(data, 'kesintiler', 'deductions')),
             net: _double(_value(data, 'net', 'net')),
+            attendanceDaysJson: Value(daysJson),
             createdAt: Value(
               _date(_value(data, 'olusturulmaTarihi', 'createdAt')),
             ),

@@ -6,29 +6,25 @@ import '../../core/providers.dart';
 import '../../data/local/app_database.dart';
 import '../../shared/ui/live_list.dart';
 import '../../shared/ui/total_summary_card.dart';
-import 'widgets/add_expense_sheet.dart';
-import 'widgets/delete_expense_dialog.dart';
-import 'widgets/expense_row_card.dart';
+import 'widgets/add_partner_payment_sheet.dart';
+import 'widgets/delete_partner_payment_dialog.dart';
+import 'widgets/partner_payment_row_card.dart';
 
-final allExpensesProvider = StreamProvider<List<Expense>>((ref) {
-  return ref.watch(expenseRepositoryProvider).watchAll();
-});
-
-class ExpensesPage extends ConsumerWidget {
-  const ExpensesPage({super.key});
+class PartnerPaymentsPage extends ConsumerWidget {
+  const PartnerPaymentsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(allExpensesProvider);
+    final payments = ref.watch(allPartnerPaymentsProvider);
 
     return Scaffold(
-      body: LiveList<Expense>(
-        async: expenses,
-        idOf: (e) => e.id,
+      body: LiveList<PartnerPayment>(
+        async: payments,
+        idOf: (p) => p.id,
         builder: (context, items, onRefresh) {
           final totalAmount = items.fold<double>(
             0,
-            (sum, expense) => sum + expense.amount,
+            (sum, payment) => sum + payment.amount,
           );
 
           return RefreshIndicator(
@@ -43,30 +39,30 @@ class ExpensesPage extends ConsumerWidget {
               ),
               children: [
                 TotalSummaryCard(
-                  label: 'Toplam Gider',
+                  label: 'Toplam Ortak Ödemesi',
                   amount: totalAmount,
-                  icon: Icons.receipt_long_rounded,
-                  accent: AppColors.danger,
+                  icon: Icons.handshake_rounded,
+                  accent: AppColors.info,
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (items.isEmpty)
                   const _EmptyState()
                 else
                   ...items.map(
-                    (expense) => Padding(
+                    (payment) => Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: ExpenseRowCard(
-                        expense: expense,
-                        accent: AppColors.danger,
-                        onEdit: () => showAddExpenseSheet(
+                      child: PartnerPaymentRowCard(
+                        payment: payment,
+                        accent: AppColors.info,
+                        onEdit: () => showAddPartnerPaymentSheet(
                           context,
                           ref,
-                          existing: expense,
+                          existing: payment,
                         ),
-                        onDelete: () => confirmDeleteExpense(
+                        onDelete: () => confirmDeletePartnerPayment(
                           context,
                           ref,
-                          expense: expense,
+                          payment: payment,
                         ),
                       ),
                     ),
@@ -78,11 +74,11 @@ class ExpensesPage extends ConsumerWidget {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => showAddExpenseSheet(context, ref),
+        onPressed: () => showAddPartnerPaymentSheet(context, ref),
         backgroundColor: AppColors.brand,
         foregroundColor: AppColors.textOnBrand,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Gider Ekle'),
+        label: const Text('Ödeme Ekle'),
       ),
     );
   }
@@ -102,7 +98,7 @@ class _EmptyState extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: const Center(
         child: Text(
-          'Henüz gider kaydı yok.',
+          'Henüz ortak ödemesi kaydı yok.',
           style: AppTextStyles.body,
         ),
       ),

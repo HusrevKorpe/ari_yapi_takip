@@ -11,12 +11,14 @@ class WorkerLifetimeStats {
     required this.totalAdvances,
     required this.totalDebts,
     required this.totalPaid,
+    required this.netPosition,
   });
 
   final double workedDayEquivalent;
   final double totalAdvances;
   final double totalDebts;
   final double totalPaid;
+  final double netPosition;
 }
 
 final siteReportDateFilterProvider =
@@ -30,6 +32,26 @@ final siteReportProvider =
   return ref
       .watch(siteReportRepositoryProvider)
       .getReport(siteId, selectedDates: dates);
+});
+
+final allPartnerPaymentsProvider =
+    StreamProvider<List<PartnerPayment>>((ref) {
+  return ref.watch(partnerPaymentRepositoryProvider).watchAll();
+});
+
+/// Daha önce kullanılmış ortak isimleri — en son kullanılandan başlayarak,
+/// tekrarsız. "Akıllı seçim" chip'lerini besler. Ödeme listesinden türetilir
+/// (ayrı bir DB stream'i açmaz; liste zaten sekmede sıcak).
+final knownPartnerNamesProvider = Provider<List<String>>((ref) {
+  final payments = ref.watch(allPartnerPaymentsProvider).valueOrNull ??
+      const <PartnerPayment>[];
+  final seen = <String>{};
+  final names = <String>[];
+  for (final p in payments) {
+    final name = p.partnerName.trim();
+    if (name.isNotEmpty && seen.add(name)) names.add(name);
+  }
+  return names;
 });
 
 final lastPaymentEndProvider =
@@ -61,21 +83,33 @@ final workerLifetimeStatsProvider =
       final attendance = ref.watch(attendanceRepositoryProvider);
       final advanceDebt = ref.watch(advanceDebtRepositoryProvider);
       final payment = ref.watch(paymentRepositoryProvider);
+      final workerRepo = ref.watch(workerRepositoryProvider);
+
+      final worker = await workerRepo.findById(workerId);
 
       final results = await Future.wait([
         attendance.totalWorkedDayEquivalent(workerId),
         advanceDebt.lifetimeTotals(workerId),
         payment.totalPaid(workerId),
+        attendance.totalLocationBonus(workerId),
       ]);
       final worked = results[0] as double;
       final totals = results[1] as ({double advances, double debts});
       final paid = results[2] as double;
+      final lifetimeLocationBonus = results[3] as double;
+
+      final dailyWage = worker?.dailyWage ?? 0;
+      final receivesBonus = worker?.receivesBonus ?? false;
+      final gross =
+          worked * dailyWage + (receivesBonus ? lifetimeLocationBonus : 0);
+      final netPosition = gross + totals.debts - totals.advances - paid;
 
       return WorkerLifetimeStats(
         workedDayEquivalent: worked,
         totalAdvances: totals.advances,
         totalDebts: totals.debts,
         totalPaid: paid,
+        netPosition: netPosition,
       );
     });
 
@@ -93,14 +127,27 @@ final workerMonthAttendanceProvider = StreamProvider.autoDispose
 
 final paymentBreakdownProvider = FutureProvider.autoDispose
     .family<List<PayrollAttendanceDay>, PayrollPayment>((ref, payment) async {
+  final payrollRepo = ref.watch(payrollRepositoryProvider);
+
+  // Önce ödeme anında dondurulmuş snapshot'tan oku — bu sayede attendance
+  // sonradan değişse bile tarihsel ödeme detayı sabit kalır.
+  final frozen = await payrollRepo.getSnapshotDays(
+    workerId: payment.workerId,
+    periodStart: payment.periodStart,
+    periodEnd: payment.periodEnd,
+  );
+  if (frozen != null) return frozen;
+
+  // Fallback: v13 öncesi snapshot'lar için canlı hesaplama. Worker silinmişse
+  // boş liste — eski davranışla uyumlu.
   final worker =
       await ref.watch(workerRepositoryProvider).findById(payment.workerId);
   if (worker == null) return const [];
-  final result = await ref.watch(payrollRepositoryProvider).calculate(
-        worker: worker,
-        periodStart: payment.periodStart,
-        periodEnd: payment.periodEnd,
-      );
+  final result = await payrollRepo.calculate(
+    worker: worker,
+    periodStart: payment.periodStart,
+    periodEnd: payment.periodEnd,
+  );
   return result.attendanceDays;
 });
 

@@ -53,6 +53,15 @@ final incomeRepositoryProvider = Provider<IncomeRepository>((ref) {
   );
 });
 
+final partnerPaymentRepositoryProvider =
+    Provider<PartnerPaymentRepository>((ref) {
+  return PartnerPaymentRepository(
+    ref.watch(databaseProvider),
+    ref.watch(uuidProvider),
+    ref.watch(syncContextProvider),
+  );
+});
+
 final advanceDebtRepositoryProvider = Provider<AdvanceDebtRepository>((ref) {
   return AdvanceDebtRepository(
     ref.watch(databaseProvider),

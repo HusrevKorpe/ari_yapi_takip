@@ -39,6 +39,7 @@ class BootstrapService {
       await _stampTable(_db.attendanceEntries, ctx);
       await _stampTable(_db.expenses, ctx);
       await _stampTable(_db.incomes, ctx);
+      await _stampTable(_db.partnerPayments, ctx);
       await _stampTable(_db.advanceDebts, ctx);
       await _stampTable(_db.payrollPayments, ctx);
       await _stampTable(_db.payrollSnapshots, ctx);
@@ -50,6 +51,7 @@ class BootstrapService {
       await _enqueueAttendance(ctx);
       await _enqueueExpenses(ctx);
       await _enqueueIncomes(ctx);
+      await _enqueuePartnerPayments(ctx);
       await _enqueueAdvanceDebts(ctx);
       await _enqueuePayrollPayments(ctx);
       await _enqueuePayrollSnapshots(ctx);
@@ -173,6 +175,37 @@ class BootstrapService {
         await _db.upsertQueueItem(
           id: _uuid.v4(),
           entityType: 'income',
+          entityId: row.id,
+          action: 'upsert',
+          payload: row.toSyncMap(),
+          organizationId: ctx.organizationId,
+        );
+      }
+    }
+  }
+
+  Future<void> _enqueuePartnerPayments(SyncContext ctx) async {
+    final rows = await _db.select(_db.partnerPayments).get();
+    for (final row in rows) {
+      if (row.deletedAt != null) {
+        await _db.upsertQueueItem(
+          id: _uuid.v4(),
+          entityType: 'partner_payment',
+          entityId: row.id,
+          action: 'delete',
+          payload: _deletePayload(
+            row.id,
+            row.deletedAt!,
+            row.lastModifiedBy,
+            row.deviceId,
+            row.syncVersion,
+          ),
+          organizationId: ctx.organizationId,
+        );
+      } else {
+        await _db.upsertQueueItem(
+          id: _uuid.v4(),
+          entityType: 'partner_payment',
           entityId: row.id,
           action: 'upsert',
           payload: row.toSyncMap(),

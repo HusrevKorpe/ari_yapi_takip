@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/providers.dart';
 import '../features/attendance/attendance_page.dart';
 import '../features/auth/auth_gate.dart';
-import '../features/expenses/expenses_page.dart';
+import '../features/expenses/expenses_tabs_page.dart';
 import '../features/incomes/incomes_page.dart';
 import '../features/payroll/payroll_page.dart';
 import '../features/sites/sites_page.dart';
@@ -173,7 +173,7 @@ class _RootShellState extends ConsumerState<RootShell> {
   static const _pages = [
     WorkersPage(),
     AttendancePage(),
-    ExpensesPage(),
+    ExpensesTabsPage(),
     IncomesPage(),
     PayrollPage(),
     SitesPage(),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -131,6 +133,9 @@ class PayrollRepository {
   Future<void> saveSnapshot(PayrollResult result) async {
     final periodKey = _periodKey(result.periodStart, result.periodEnd);
     final now = DateTime.now();
+    final daysJson = jsonEncode(
+      result.attendanceDays.map(_dayToJson).toList(),
+    );
 
     await _db.transaction(() async {
       final existing = await (_db.select(_db.payrollSnapshots)
@@ -151,6 +156,7 @@ class PayrollRepository {
           gross: result.gross,
           deductions: result.deductions,
           net: result.net,
+          attendanceDaysJson: Value(daysJson),
           updatedAt: Value(now),
           lastModifiedBy: Value(_ctx.userId),
           deviceId: Value(_ctx.deviceId),
@@ -162,6 +168,7 @@ class PayrollRepository {
             gross: Value(result.gross),
             deductions: Value(result.deductions),
             net: Value(result.net),
+            attendanceDaysJson: Value(daysJson),
             updatedAt: Value(now),
             lastModifiedBy: Value(_ctx.userId),
             deviceId: Value(_ctx.deviceId),
@@ -207,9 +214,55 @@ class PayrollRepository {
     return results.isEmpty ? null : results.first;
   }
 
+  /// Snapshot anında dondurulmuş günlük detayı döner. Snapshot yoksa veya
+  /// v13 öncesi yazıldığı için days alanı boşsa null döner — çağıran taraf
+  /// gerekirse `calculate()` ile canlı hesaplamaya geri düşebilir.
+  Future<List<PayrollAttendanceDay>?> getSnapshotDays({
+    required String workerId,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+  }) async {
+    final snapshot = await getSnapshot(
+      workerId: workerId,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+    );
+    final raw = snapshot?.attendanceDaysJson;
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => _dayFromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      // Bozuk JSON: snapshot var ama parse edilemiyor — fallback olarak null
+      // dönüp canlı hesaplamaya izin ver, sessiz veri kaybı yapma.
+      return null;
+    }
+  }
+
   String _periodKey(DateTime start, DateTime end) {
     String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     return '${fmt(start)}_${fmt(end)}';
   }
+
+  static Map<String, dynamic> _dayToJson(PayrollAttendanceDay d) => {
+        'date': d.date.toIso8601String(),
+        'status': d.status.code,
+        'dayEquivalent': d.dayEquivalent,
+        'dailyAmount': d.dailyAmount,
+        'siteId': d.siteId,
+        'siteBonus': d.siteBonus,
+      };
+
+  static PayrollAttendanceDay _dayFromJson(Map<String, dynamic> m) =>
+      PayrollAttendanceDay(
+        date: DateTime.parse(m['date'] as String),
+        status: AttendanceStatusX.fromCode(m['status'] as String),
+        dayEquivalent: (m['dayEquivalent'] as num).toDouble(),
+        dailyAmount: (m['dailyAmount'] as num).toDouble(),
+        siteId: m['siteId'] as String?,
+        siteBonus: (m['siteBonus'] as num?)?.toDouble() ?? 0,
+      );
 }

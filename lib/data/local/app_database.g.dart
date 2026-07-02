@@ -4120,6 +4120,677 @@ class IncomesCompanion extends UpdateCompanion<Income> {
   }
 }
 
+class $PartnerPaymentsTable extends PartnerPayments
+    with TableInfo<$PartnerPaymentsTable, PartnerPayment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PartnerPaymentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedByMeta = const VerificationMeta(
+    'lastModifiedBy',
+  );
+  @override
+  late final GeneratedColumn<String> lastModifiedBy = GeneratedColumn<String>(
+    'last_modified_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncVersionMeta = const VerificationMeta(
+    'syncVersion',
+  );
+  @override
+  late final GeneratedColumn<int> syncVersion = GeneratedColumn<int>(
+    'sync_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _paymentDateMeta = const VerificationMeta(
+    'paymentDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> paymentDate = GeneratedColumn<DateTime>(
+    'payment_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _partnerNameMeta = const VerificationMeta(
+    'partnerName',
+  );
+  @override
+  late final GeneratedColumn<String> partnerName = GeneratedColumn<String>(
+    'partner_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    paymentDate,
+    amount,
+    partnerName,
+    description,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'partner_payments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PartnerPayment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified_by')) {
+      context.handle(
+        _lastModifiedByMeta,
+        lastModifiedBy.isAcceptableOrUnknown(
+          data['last_modified_by']!,
+          _lastModifiedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_version')) {
+      context.handle(
+        _syncVersionMeta,
+        syncVersion.isAcceptableOrUnknown(
+          data['sync_version']!,
+          _syncVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('payment_date')) {
+      context.handle(
+        _paymentDateMeta,
+        paymentDate.isAcceptableOrUnknown(
+          data['payment_date']!,
+          _paymentDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_paymentDateMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('partner_name')) {
+      context.handle(
+        _partnerNameMeta,
+        partnerName.isAcceptableOrUnknown(
+          data['partner_name']!,
+          _partnerNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_partnerNameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PartnerPayment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PartnerPayment(
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModifiedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_modified_by'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      syncVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_version'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      paymentDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}payment_date'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      partnerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}partner_name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PartnerPaymentsTable createAlias(String alias) {
+    return $PartnerPaymentsTable(attachedDatabase, alias);
+  }
+}
+
+class PartnerPayment extends DataClass implements Insertable<PartnerPayment> {
+  final DateTime? deletedAt;
+  final String lastModifiedBy;
+  final String deviceId;
+  final int syncVersion;
+  final String id;
+  final DateTime paymentDate;
+  final double amount;
+  final String partnerName;
+  final String? description;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const PartnerPayment({
+    this.deletedAt,
+    required this.lastModifiedBy,
+    required this.deviceId,
+    required this.syncVersion,
+    required this.id,
+    required this.paymentDate,
+    required this.amount,
+    required this.partnerName,
+    this.description,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['last_modified_by'] = Variable<String>(lastModifiedBy);
+    map['device_id'] = Variable<String>(deviceId);
+    map['sync_version'] = Variable<int>(syncVersion);
+    map['id'] = Variable<String>(id);
+    map['payment_date'] = Variable<DateTime>(paymentDate);
+    map['amount'] = Variable<double>(amount);
+    map['partner_name'] = Variable<String>(partnerName);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PartnerPaymentsCompanion toCompanion(bool nullToAbsent) {
+    return PartnerPaymentsCompanion(
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModifiedBy: Value(lastModifiedBy),
+      deviceId: Value(deviceId),
+      syncVersion: Value(syncVersion),
+      id: Value(id),
+      paymentDate: Value(paymentDate),
+      amount: Value(amount),
+      partnerName: Value(partnerName),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PartnerPayment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PartnerPayment(
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      lastModifiedBy: serializer.fromJson<String>(json['lastModifiedBy']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncVersion: serializer.fromJson<int>(json['syncVersion']),
+      id: serializer.fromJson<String>(json['id']),
+      paymentDate: serializer.fromJson<DateTime>(json['paymentDate']),
+      amount: serializer.fromJson<double>(json['amount']),
+      partnerName: serializer.fromJson<String>(json['partnerName']),
+      description: serializer.fromJson<String?>(json['description']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'lastModifiedBy': serializer.toJson<String>(lastModifiedBy),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'syncVersion': serializer.toJson<int>(syncVersion),
+      'id': serializer.toJson<String>(id),
+      'paymentDate': serializer.toJson<DateTime>(paymentDate),
+      'amount': serializer.toJson<double>(amount),
+      'partnerName': serializer.toJson<String>(partnerName),
+      'description': serializer.toJson<String?>(description),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PartnerPayment copyWith({
+    Value<DateTime?> deletedAt = const Value.absent(),
+    String? lastModifiedBy,
+    String? deviceId,
+    int? syncVersion,
+    String? id,
+    DateTime? paymentDate,
+    double? amount,
+    String? partnerName,
+    Value<String?> description = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => PartnerPayment(
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+    deviceId: deviceId ?? this.deviceId,
+    syncVersion: syncVersion ?? this.syncVersion,
+    id: id ?? this.id,
+    paymentDate: paymentDate ?? this.paymentDate,
+    amount: amount ?? this.amount,
+    partnerName: partnerName ?? this.partnerName,
+    description: description.present ? description.value : this.description,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PartnerPayment copyWithCompanion(PartnerPaymentsCompanion data) {
+    return PartnerPayment(
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModifiedBy: data.lastModifiedBy.present
+          ? data.lastModifiedBy.value
+          : this.lastModifiedBy,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncVersion: data.syncVersion.present
+          ? data.syncVersion.value
+          : this.syncVersion,
+      id: data.id.present ? data.id.value : this.id,
+      paymentDate: data.paymentDate.present
+          ? data.paymentDate.value
+          : this.paymentDate,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      partnerName: data.partnerName.present
+          ? data.partnerName.value
+          : this.partnerName,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PartnerPayment(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('amount: $amount, ')
+          ..write('partnerName: $partnerName, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    deletedAt,
+    lastModifiedBy,
+    deviceId,
+    syncVersion,
+    id,
+    paymentDate,
+    amount,
+    partnerName,
+    description,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PartnerPayment &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModifiedBy == this.lastModifiedBy &&
+          other.deviceId == this.deviceId &&
+          other.syncVersion == this.syncVersion &&
+          other.id == this.id &&
+          other.paymentDate == this.paymentDate &&
+          other.amount == this.amount &&
+          other.partnerName == this.partnerName &&
+          other.description == this.description &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PartnerPaymentsCompanion extends UpdateCompanion<PartnerPayment> {
+  final Value<DateTime?> deletedAt;
+  final Value<String> lastModifiedBy;
+  final Value<String> deviceId;
+  final Value<int> syncVersion;
+  final Value<String> id;
+  final Value<DateTime> paymentDate;
+  final Value<double> amount;
+  final Value<String> partnerName;
+  final Value<String?> description;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const PartnerPaymentsCompanion({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    this.id = const Value.absent(),
+    this.paymentDate = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.partnerName = const Value.absent(),
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PartnerPaymentsCompanion.insert({
+    this.deletedAt = const Value.absent(),
+    this.lastModifiedBy = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncVersion = const Value.absent(),
+    required String id,
+    required DateTime paymentDate,
+    required double amount,
+    required String partnerName,
+    this.description = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       paymentDate = Value(paymentDate),
+       amount = Value(amount),
+       partnerName = Value(partnerName);
+  static Insertable<PartnerPayment> custom({
+    Expression<DateTime>? deletedAt,
+    Expression<String>? lastModifiedBy,
+    Expression<String>? deviceId,
+    Expression<int>? syncVersion,
+    Expression<String>? id,
+    Expression<DateTime>? paymentDate,
+    Expression<double>? amount,
+    Expression<String>? partnerName,
+    Expression<String>? description,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModifiedBy != null) 'last_modified_by': lastModifiedBy,
+      if (deviceId != null) 'device_id': deviceId,
+      if (syncVersion != null) 'sync_version': syncVersion,
+      if (id != null) 'id': id,
+      if (paymentDate != null) 'payment_date': paymentDate,
+      if (amount != null) 'amount': amount,
+      if (partnerName != null) 'partner_name': partnerName,
+      if (description != null) 'description': description,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PartnerPaymentsCompanion copyWith({
+    Value<DateTime?>? deletedAt,
+    Value<String>? lastModifiedBy,
+    Value<String>? deviceId,
+    Value<int>? syncVersion,
+    Value<String>? id,
+    Value<DateTime>? paymentDate,
+    Value<double>? amount,
+    Value<String>? partnerName,
+    Value<String?>? description,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PartnerPaymentsCompanion(
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModifiedBy: lastModifiedBy ?? this.lastModifiedBy,
+      deviceId: deviceId ?? this.deviceId,
+      syncVersion: syncVersion ?? this.syncVersion,
+      id: id ?? this.id,
+      paymentDate: paymentDate ?? this.paymentDate,
+      amount: amount ?? this.amount,
+      partnerName: partnerName ?? this.partnerName,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (lastModifiedBy.present) {
+      map['last_modified_by'] = Variable<String>(lastModifiedBy.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncVersion.present) {
+      map['sync_version'] = Variable<int>(syncVersion.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (paymentDate.present) {
+      map['payment_date'] = Variable<DateTime>(paymentDate.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (partnerName.present) {
+      map['partner_name'] = Variable<String>(partnerName.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PartnerPaymentsCompanion(')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModifiedBy: $lastModifiedBy, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncVersion: $syncVersion, ')
+          ..write('id: $id, ')
+          ..write('paymentDate: $paymentDate, ')
+          ..write('amount: $amount, ')
+          ..write('partnerName: $partnerName, ')
+          ..write('description: $description, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AdvanceDebtsTable extends AdvanceDebts
     with TableInfo<$AdvanceDebtsTable, AdvanceDebt> {
   @override
@@ -5699,6 +6370,17 @@ class $PayrollSnapshotsTable extends PayrollSnapshots
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _attendanceDaysJsonMeta =
+      const VerificationMeta('attendanceDaysJson');
+  @override
+  late final GeneratedColumn<String> attendanceDaysJson =
+      GeneratedColumn<String>(
+        'attendance_days_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5736,6 +6418,7 @@ class $PayrollSnapshotsTable extends PayrollSnapshots
     gross,
     deductions,
     net,
+    attendanceDaysJson,
     createdAt,
     updatedAt,
   ];
@@ -5837,6 +6520,15 @@ class $PayrollSnapshotsTable extends PayrollSnapshots
     } else if (isInserting) {
       context.missing(_netMeta);
     }
+    if (data.containsKey('attendance_days_json')) {
+      context.handle(
+        _attendanceDaysJsonMeta,
+        attendanceDaysJson.isAcceptableOrUnknown(
+          data['attendance_days_json']!,
+          _attendanceDaysJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5906,6 +6598,10 @@ class $PayrollSnapshotsTable extends PayrollSnapshots
         DriftSqlType.double,
         data['${effectivePrefix}net'],
       )!,
+      attendanceDaysJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attendance_days_json'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -5935,6 +6631,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
   final double gross;
   final double deductions;
   final double net;
+  final String? attendanceDaysJson;
   final DateTime createdAt;
   final DateTime updatedAt;
   const PayrollSnapshot({
@@ -5949,6 +6646,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
     required this.gross,
     required this.deductions,
     required this.net,
+    this.attendanceDaysJson,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -5968,6 +6666,9 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
     map['gross'] = Variable<double>(gross);
     map['deductions'] = Variable<double>(deductions);
     map['net'] = Variable<double>(net);
+    if (!nullToAbsent || attendanceDaysJson != null) {
+      map['attendance_days_json'] = Variable<String>(attendanceDaysJson);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -5988,6 +6689,9 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
       gross: Value(gross),
       deductions: Value(deductions),
       net: Value(net),
+      attendanceDaysJson: attendanceDaysJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attendanceDaysJson),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -6012,6 +6716,9 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
       gross: serializer.fromJson<double>(json['gross']),
       deductions: serializer.fromJson<double>(json['deductions']),
       net: serializer.fromJson<double>(json['net']),
+      attendanceDaysJson: serializer.fromJson<String?>(
+        json['attendanceDaysJson'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -6031,6 +6738,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
       'gross': serializer.toJson<double>(gross),
       'deductions': serializer.toJson<double>(deductions),
       'net': serializer.toJson<double>(net),
+      'attendanceDaysJson': serializer.toJson<String?>(attendanceDaysJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -6048,6 +6756,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
     double? gross,
     double? deductions,
     double? net,
+    Value<String?> attendanceDaysJson = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => PayrollSnapshot(
@@ -6062,6 +6771,9 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
     gross: gross ?? this.gross,
     deductions: deductions ?? this.deductions,
     net: net ?? this.net,
+    attendanceDaysJson: attendanceDaysJson.present
+        ? attendanceDaysJson.value
+        : this.attendanceDaysJson,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -6086,6 +6798,9 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
           ? data.deductions.value
           : this.deductions,
       net: data.net.present ? data.net.value : this.net,
+      attendanceDaysJson: data.attendanceDaysJson.present
+          ? data.attendanceDaysJson.value
+          : this.attendanceDaysJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -6105,6 +6820,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
           ..write('gross: $gross, ')
           ..write('deductions: $deductions, ')
           ..write('net: $net, ')
+          ..write('attendanceDaysJson: $attendanceDaysJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -6124,6 +6840,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
     gross,
     deductions,
     net,
+    attendanceDaysJson,
     createdAt,
     updatedAt,
   );
@@ -6142,6 +6859,7 @@ class PayrollSnapshot extends DataClass implements Insertable<PayrollSnapshot> {
           other.gross == this.gross &&
           other.deductions == this.deductions &&
           other.net == this.net &&
+          other.attendanceDaysJson == this.attendanceDaysJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -6158,6 +6876,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
   final Value<double> gross;
   final Value<double> deductions;
   final Value<double> net;
+  final Value<String?> attendanceDaysJson;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -6173,6 +6892,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
     this.gross = const Value.absent(),
     this.deductions = const Value.absent(),
     this.net = const Value.absent(),
+    this.attendanceDaysJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6189,6 +6909,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
     required double gross,
     required double deductions,
     required double net,
+    this.attendanceDaysJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -6211,6 +6932,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
     Expression<double>? gross,
     Expression<double>? deductions,
     Expression<double>? net,
+    Expression<String>? attendanceDaysJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -6228,6 +6950,8 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
       if (gross != null) 'gross': gross,
       if (deductions != null) 'deductions': deductions,
       if (net != null) 'net': net,
+      if (attendanceDaysJson != null)
+        'attendance_days_json': attendanceDaysJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -6246,6 +6970,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
     Value<double>? gross,
     Value<double>? deductions,
     Value<double>? net,
+    Value<String?>? attendanceDaysJson,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -6262,6 +6987,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
       gross: gross ?? this.gross,
       deductions: deductions ?? this.deductions,
       net: net ?? this.net,
+      attendanceDaysJson: attendanceDaysJson ?? this.attendanceDaysJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -6306,6 +7032,9 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
     if (net.present) {
       map['net'] = Variable<double>(net.value);
     }
+    if (attendanceDaysJson.present) {
+      map['attendance_days_json'] = Variable<String>(attendanceDaysJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -6332,6 +7061,7 @@ class PayrollSnapshotsCompanion extends UpdateCompanion<PayrollSnapshot> {
           ..write('gross: $gross, ')
           ..write('deductions: $deductions, ')
           ..write('net: $net, ')
+          ..write('attendanceDaysJson: $attendanceDaysJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -8034,6 +8764,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AttendanceEntriesTable(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $IncomesTable incomes = $IncomesTable(this);
+  late final $PartnerPaymentsTable partnerPayments = $PartnerPaymentsTable(
+    this,
+  );
   late final $AdvanceDebtsTable advanceDebts = $AdvanceDebtsTable(this);
   late final $PayrollPaymentsTable payrollPayments = $PayrollPaymentsTable(
     this,
@@ -8055,6 +8788,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     attendanceEntries,
     expenses,
     incomes,
+    partnerPayments,
     advanceDebts,
     payrollPayments,
     payrollSnapshots,
@@ -10031,6 +10765,336 @@ typedef $$IncomesTableProcessedTableManager =
       Income,
       PrefetchHooks Function()
     >;
+typedef $$PartnerPaymentsTableCreateCompanionBuilder =
+    PartnerPaymentsCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      required String id,
+      required DateTime paymentDate,
+      required double amount,
+      required String partnerName,
+      Value<String?> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PartnerPaymentsTableUpdateCompanionBuilder =
+    PartnerPaymentsCompanion Function({
+      Value<DateTime?> deletedAt,
+      Value<String> lastModifiedBy,
+      Value<String> deviceId,
+      Value<int> syncVersion,
+      Value<String> id,
+      Value<DateTime> paymentDate,
+      Value<double> amount,
+      Value<String> partnerName,
+      Value<String?> description,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$PartnerPaymentsTableFilterComposer
+    extends Composer<_$AppDatabase, $PartnerPaymentsTable> {
+  $$PartnerPaymentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partnerName => $composableBuilder(
+    column: $table.partnerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PartnerPaymentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PartnerPaymentsTable> {
+  $$PartnerPaymentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partnerName => $composableBuilder(
+    column: $table.partnerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PartnerPaymentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PartnerPaymentsTable> {
+  $$PartnerPaymentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get lastModifiedBy => $composableBuilder(
+    column: $table.lastModifiedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncVersion => $composableBuilder(
+    column: $table.syncVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get paymentDate => $composableBuilder(
+    column: $table.paymentDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get partnerName => $composableBuilder(
+    column: $table.partnerName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$PartnerPaymentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PartnerPaymentsTable,
+          PartnerPayment,
+          $$PartnerPaymentsTableFilterComposer,
+          $$PartnerPaymentsTableOrderingComposer,
+          $$PartnerPaymentsTableAnnotationComposer,
+          $$PartnerPaymentsTableCreateCompanionBuilder,
+          $$PartnerPaymentsTableUpdateCompanionBuilder,
+          (
+            PartnerPayment,
+            BaseReferences<
+              _$AppDatabase,
+              $PartnerPaymentsTable,
+              PartnerPayment
+            >,
+          ),
+          PartnerPayment,
+          PrefetchHooks Function()
+        > {
+  $$PartnerPaymentsTableTableManager(
+    _$AppDatabase db,
+    $PartnerPaymentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PartnerPaymentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PartnerPaymentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PartnerPaymentsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<DateTime> paymentDate = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> partnerName = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PartnerPaymentsCompanion(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                paymentDate: paymentDate,
+                amount: amount,
+                partnerName: partnerName,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> lastModifiedBy = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncVersion = const Value.absent(),
+                required String id,
+                required DateTime paymentDate,
+                required double amount,
+                required String partnerName,
+                Value<String?> description = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PartnerPaymentsCompanion.insert(
+                deletedAt: deletedAt,
+                lastModifiedBy: lastModifiedBy,
+                deviceId: deviceId,
+                syncVersion: syncVersion,
+                id: id,
+                paymentDate: paymentDate,
+                amount: amount,
+                partnerName: partnerName,
+                description: description,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PartnerPaymentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PartnerPaymentsTable,
+      PartnerPayment,
+      $$PartnerPaymentsTableFilterComposer,
+      $$PartnerPaymentsTableOrderingComposer,
+      $$PartnerPaymentsTableAnnotationComposer,
+      $$PartnerPaymentsTableCreateCompanionBuilder,
+      $$PartnerPaymentsTableUpdateCompanionBuilder,
+      (
+        PartnerPayment,
+        BaseReferences<_$AppDatabase, $PartnerPaymentsTable, PartnerPayment>,
+      ),
+      PartnerPayment,
+      PrefetchHooks Function()
+    >;
 typedef $$AdvanceDebtsTableCreateCompanionBuilder =
     AdvanceDebtsCompanion Function({
       Value<DateTime?> deletedAt,
@@ -10747,6 +11811,7 @@ typedef $$PayrollSnapshotsTableCreateCompanionBuilder =
       required double gross,
       required double deductions,
       required double net,
+      Value<String?> attendanceDaysJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -10764,6 +11829,7 @@ typedef $$PayrollSnapshotsTableUpdateCompanionBuilder =
       Value<double> gross,
       Value<double> deductions,
       Value<double> net,
+      Value<String?> attendanceDaysJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -10830,6 +11896,11 @@ class $$PayrollSnapshotsTableFilterComposer
 
   ColumnFilters<double> get net => $composableBuilder(
     column: $table.net,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attendanceDaysJson => $composableBuilder(
+    column: $table.attendanceDaysJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10908,6 +11979,11 @@ class $$PayrollSnapshotsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attendanceDaysJson => $composableBuilder(
+    column: $table.attendanceDaysJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10969,6 +12045,11 @@ class $$PayrollSnapshotsTableAnnotationComposer
   GeneratedColumn<double> get net =>
       $composableBuilder(column: $table.net, builder: (column) => column);
 
+  GeneratedColumn<String> get attendanceDaysJson => $composableBuilder(
+    column: $table.attendanceDaysJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -11024,6 +12105,7 @@ class $$PayrollSnapshotsTableTableManager
                 Value<double> gross = const Value.absent(),
                 Value<double> deductions = const Value.absent(),
                 Value<double> net = const Value.absent(),
+                Value<String?> attendanceDaysJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11039,6 +12121,7 @@ class $$PayrollSnapshotsTableTableManager
                 gross: gross,
                 deductions: deductions,
                 net: net,
+                attendanceDaysJson: attendanceDaysJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -11056,6 +12139,7 @@ class $$PayrollSnapshotsTableTableManager
                 required double gross,
                 required double deductions,
                 required double net,
+                Value<String?> attendanceDaysJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11071,6 +12155,7 @@ class $$PayrollSnapshotsTableTableManager
                 gross: gross,
                 deductions: deductions,
                 net: net,
+                attendanceDaysJson: attendanceDaysJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -11950,6 +13035,8 @@ class $AppDatabaseManager {
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$IncomesTableTableManager get incomes =>
       $$IncomesTableTableManager(_db, _db.incomes);
+  $$PartnerPaymentsTableTableManager get partnerPayments =>
+      $$PartnerPaymentsTableTableManager(_db, _db.partnerPayments);
   $$AdvanceDebtsTableTableManager get advanceDebts =>
       $$AdvanceDebtsTableTableManager(_db, _db.advanceDebts);
   $$PayrollPaymentsTableTableManager get payrollPayments =>

@@ -43,3 +43,14 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Service account anahtarları ve script bağımlılıkları
+serviceAccount.json
+serviceAccount*.json
+scripts/node_modules/
+scripts/package-lock.json
+
+# Firebase Emulator Suite (yerel test) artifact'ları
+*-debug.log
+.firebase/
+emulator-data/

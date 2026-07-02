@@ -1,0 +1,12 @@
+{
+  "name": "ari-yapitakip-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ad-hoc Firestore sorgu scriptleri",
+  "scripts": {
+    "query-worker": "node query_worker.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

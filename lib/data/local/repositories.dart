@@ -3,6 +3,7 @@ export 'repositories/attendance_repository.dart';
 export 'repositories/dtos.dart';
 export 'repositories/expense_repository.dart';
 export 'repositories/income_repository.dart';
+export 'repositories/partner_payment_repository.dart';
 export 'repositories/payment_repository.dart';
 export 'repositories/payroll_repository.dart';
 export 'repositories/site_note_repository.dart';

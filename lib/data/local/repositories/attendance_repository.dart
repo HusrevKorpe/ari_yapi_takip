@@ -260,6 +260,43 @@ class AttendanceRepository {
     );
   }
 
+  Future<double> totalLocationBonus(String workerId) async {
+    final entries = await (_db.select(_db.attendanceEntries)
+          ..where(
+            (a) => a.workerId.equals(workerId) & a.deletedAt.isNull(),
+          ))
+        .get();
+
+    if (entries.isEmpty) return 0;
+
+    final siteIds = <String>{
+      for (final e in entries) ...[
+        if (e.siteId != null) e.siteId!,
+        if (e.secondSiteId != null) e.secondSiteId!,
+      ],
+    }.toList();
+
+    if (siteIds.isEmpty) return 0;
+
+    final sites = await (_db.select(_db.sites)
+          ..where((s) => s.id.isIn(siteIds)))
+        .get();
+
+    final bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
+
+    double total = 0;
+    for (final entry in entries) {
+      final status = AttendanceStatusX.fromCode(entry.status);
+      if (!status.requiresSite || entry.siteId == null) continue;
+      final bonus = bonusBySiteId[entry.siteId] ?? 0;
+      if (bonus <= 0) continue;
+      final equivalent = status == AttendanceStatus.halfDay ? 0.5 : 1.0;
+      total += bonus * equivalent;
+    }
+
+    return total;
+  }
+
   Future<DateTime?> earliestDateForWorker(
     String workerId, {
     required DateTime since,

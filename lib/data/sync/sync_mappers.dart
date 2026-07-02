@@ -87,6 +87,22 @@ extension IncomeSyncExt on Income {
   };
 }
 
+extension PartnerPaymentSyncExt on PartnerPayment {
+  Map<String, dynamic> toSyncMap() => {
+    'id': id,
+    'odemeTarihi': paymentDate.toIso8601String(),
+    'tutar': amount,
+    'ortakAdi': partnerName,
+    'aciklama': description,
+    'olusturulmaTarihi': createdAt.toIso8601String(),
+    'guncellenmeTarihi': updatedAt.toIso8601String(),
+    'silinmeTarihi': deletedAt?.toIso8601String(),
+    'sonDegistiren': lastModifiedBy,
+    'cihazId': deviceId,
+    'senkronSurumu': syncVersion,
+  };
+}
+
 extension AdvanceDebtSyncExt on AdvanceDebt {
   Map<String, dynamic> toSyncMap() => {
     'id': id,
@@ -146,6 +162,7 @@ extension PayrollSnapshotSyncExt on PayrollSnapshot {
     'brut': gross,
     'kesintiler': deductions,
     'net': net,
+    'gunlukDetay': attendanceDaysJson,
     'olusturulmaTarihi': createdAt.toIso8601String(),
     'guncellenmeTarihi': updatedAt.toIso8601String(),
     'silinmeTarihi': deletedAt?.toIso8601String(),
