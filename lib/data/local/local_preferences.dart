@@ -17,6 +17,16 @@ class LocalPreferences {
   Future<void> setOrganizationId(String value) =>
       _prefs.setString('organizationId', value);
 
+  /// Yerel Drift veritabaninin fiziksel olarak hangi organizasyona ait
+  /// oldugunu tutar. `organizationId`'den farkli olarak `clearSession()`
+  /// (cikis) bu isareti SILMEZ; boylece A firmasi cikip ayni cihazda B firmasi
+  /// girdiginde A'nin yerel verisi guvenle temizlenebilir. Aksi halde iki
+  /// firmanin verisi ayni cihazda karisir (capraz-organizasyon sizintisi).
+  String get localDataOrganizationId =>
+      _prefs.getString('localDataOrganizationId') ?? '';
+  Future<void> setLocalDataOrganizationId(String value) =>
+      _prefs.setString('localDataOrganizationId', value);
+
   // ---- Bootstrap ----
 
   String _bootstrapKey(String organizationId) =>

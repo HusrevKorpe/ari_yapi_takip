@@ -5,6 +5,7 @@ import '../../../app/design_tokens.dart';
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/ui/app_form_sheet.dart';
+import '../../../shared/ui/snackbar_helper.dart';
 
 const _accent = AppColors.success;
 
@@ -43,26 +44,34 @@ Future<void> showAddIncomeSheet(
             ? null
             : descriptionController.text.trim();
 
-        final repo = ref.read(incomeRepositoryProvider);
-        if (existing != null) {
-          await repo.updateIncome(
-            incomeId: existing.id,
-            date: existing.incomeDate,
-            amount: amount,
-            category: category,
-            siteId: existing.siteId,
-            description: description,
-          );
-        } else {
-          await repo.addIncome(
-            date: DateTime.now(),
-            amount: amount,
-            category: category,
-            description: description,
-          );
+        try {
+          final repo = ref.read(incomeRepositoryProvider);
+          if (existing != null) {
+            await repo.updateIncome(
+              incomeId: existing.id,
+              date: existing.incomeDate,
+              amount: amount,
+              category: category,
+              siteId: existing.siteId,
+              description: description,
+            );
+          } else {
+            await repo.addIncome(
+              date: DateTime.now(),
+              amount: amount,
+              category: category,
+              description: description,
+            );
+          }
+          if (sheetContext.mounted) Navigator.pop(sheetContext);
+        } catch (_) {
+          if (sheetContext.mounted) {
+            showErrorSnackBar(
+              sheetContext,
+              'Gelir kaydedilemedi. Lütfen tekrar deneyin.',
+            );
+          }
         }
-
-        if (sheetContext.mounted) Navigator.pop(sheetContext);
       },
       children: [
         Row(

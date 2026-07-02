@@ -6,6 +6,7 @@ import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/pay_frequency.dart';
 import '../../../shared/ui/app_form_sheet.dart';
+import '../../../shared/ui/snackbar_helper.dart';
 
 const _accent = AppColors.brand;
 
@@ -44,18 +45,26 @@ Future<void> showAddWorkerSheet(
                   0;
               if (name.isEmpty || wage <= 0) return;
 
-              await ref.read(workerRepositoryProvider).saveWorker(
-                    id: existing?.id,
-                    fullName: name,
-                    dailyWage: wage,
-                    payFrequency: selectedFrequency.code,
-                    receivesBonus: receivesBonus,
-                    notes: noteController.text.trim().isEmpty
-                        ? null
-                        : noteController.text.trim(),
+              try {
+                await ref.read(workerRepositoryProvider).saveWorker(
+                      id: existing?.id,
+                      fullName: name,
+                      dailyWage: wage,
+                      payFrequency: selectedFrequency.code,
+                      receivesBonus: receivesBonus,
+                      notes: noteController.text.trim().isEmpty
+                          ? null
+                          : noteController.text.trim(),
+                    );
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } catch (_) {
+                if (sheetContext.mounted) {
+                  showErrorSnackBar(
+                    sheetContext,
+                    'Çalışan kaydedilemedi. Lütfen tekrar deneyin.',
                   );
-
-              if (sheetContext.mounted) Navigator.pop(sheetContext);
+                }
+              }
             },
             children: [
               TextField(

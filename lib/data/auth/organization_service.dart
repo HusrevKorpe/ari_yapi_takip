@@ -32,6 +32,7 @@ class OrganizationService {
     if (!_isFirebaseAvailable) {
       await _prefs.setUserId(uid);
       await _prefs.setOrganizationId(uid);
+      await _prefs.setLocalDataOrganizationId(uid);
       return uid;
     }
 
@@ -73,14 +74,18 @@ class OrganizationService {
       }
     }
 
-    final previousOrgId = _prefs.organizationId;
-    if (previousOrgId.isNotEmpty && previousOrgId != orgId) {
+    // Yerel DB baska bir org'un verisini tutuyorsa (hesap degisimi) once
+    // temizle. prefs.organizationId cikista silindigi icin guvenilmez;
+    // cikista da korunan kalici localDataOrganizationId isaretini kullaniriz.
+    final localDataOrgId = _prefs.localDataOrganizationId;
+    if (localDataOrgId.isNotEmpty && localDataOrgId != orgId) {
       await _db.clearTenantScopedData();
-      await _prefs.clearBootstrapCompleteFor(previousOrgId);
+      await _prefs.clearBootstrapCompleteFor(localDataOrgId);
     }
 
     await _prefs.setUserId(uid);
     await _prefs.setOrganizationId(orgId);
+    await _prefs.setLocalDataOrganizationId(orgId);
 
     return orgId;
   }

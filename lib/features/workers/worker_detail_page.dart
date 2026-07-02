@@ -324,9 +324,15 @@ class _AdvanceDebtTab extends ConsumerWidget {
     );
 
     if (confirmed != true) return;
-    await ref.read(advanceDebtRepositoryProvider).delete(id: debt.id);
-    if (context.mounted) {
-      showSuccessSnackBar(context, 'Kayıt silindi');
+    try {
+      await ref.read(advanceDebtRepositoryProvider).delete(id: debt.id);
+      if (context.mounted) {
+        showSuccessSnackBar(context, 'Kayıt silindi');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showErrorSnackBar(context, 'Kayıt silinemedi. Lütfen tekrar deneyin.');
+      }
     }
   }
 }
@@ -649,35 +655,44 @@ Future<void> _showAdvanceDebtDialog(
                       ? null
                       : noteController.text.trim();
                   final repo = ref.read(advanceDebtRepositoryProvider);
-                  if (isEdit) {
-                    await repo.update(
-                      id: existing.id,
-                      date: selectedDate,
-                      type: type,
-                      amount: amount,
-                      note: note,
-                    );
-                  } else {
-                    await repo.add(
-                      workerId: workerId,
-                      date: selectedDate,
-                      type: type,
-                      amount: amount,
-                      note: note,
-                    );
-                  }
-                  if (dialogContext.mounted) {
-                    Navigator.pop(dialogContext);
-                  }
-                  if (context.mounted) {
-                    showSuccessSnackBar(
-                      context,
-                      isEdit
-                          ? 'Kayıt güncellendi'
-                          : (type == 'advance'
-                              ? 'Avans kaydedildi'
-                              : 'Borç kaydedildi'),
-                    );
+                  try {
+                    if (isEdit) {
+                      await repo.update(
+                        id: existing.id,
+                        date: selectedDate,
+                        type: type,
+                        amount: amount,
+                        note: note,
+                      );
+                    } else {
+                      await repo.add(
+                        workerId: workerId,
+                        date: selectedDate,
+                        type: type,
+                        amount: amount,
+                        note: note,
+                      );
+                    }
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext);
+                    }
+                    if (context.mounted) {
+                      showSuccessSnackBar(
+                        context,
+                        isEdit
+                            ? 'Kayıt güncellendi'
+                            : (type == 'advance'
+                                ? 'Avans kaydedildi'
+                                : 'Borç kaydedildi'),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      showErrorSnackBar(
+                        context,
+                        'Kayıt kaydedilemedi. Lütfen tekrar deneyin.',
+                      );
+                    }
                   }
                 },
                 child: Text(isEdit ? 'Güncelle' : 'Kaydet'),

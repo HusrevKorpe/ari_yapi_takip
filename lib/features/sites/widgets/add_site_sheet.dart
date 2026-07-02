@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/design_tokens.dart';
 import '../../../core/providers.dart';
 import '../../../shared/ui/app_form_sheet.dart';
+import '../../../shared/ui/snackbar_helper.dart';
 
 const _accent = AppColors.info;
 
@@ -28,15 +29,26 @@ Future<void> showAddSiteSheet(BuildContext context, WidgetRef ref) {
                 .substring(0, name.length >= 3 ? 3 : name.length)
                 .toUpperCase()
             : codeController.text.trim().toUpperCase();
-        final bonus = double.tryParse(bonusController.text.trim()) ?? 0;
+        final bonus = double.tryParse(
+              bonusController.text.trim().replaceAll(',', '.'),
+            ) ??
+            0;
 
-        await ref.read(siteRepositoryProvider).createSite(
-              name: name,
-              code: code,
-              dailyBonus: bonus,
+        try {
+          await ref.read(siteRepositoryProvider).createSite(
+                name: name,
+                code: code,
+                dailyBonus: bonus,
+              );
+          if (sheetContext.mounted) Navigator.pop(sheetContext);
+        } catch (_) {
+          if (sheetContext.mounted) {
+            showErrorSnackBar(
+              sheetContext,
+              'Şantiye kaydedilemedi. Lütfen tekrar deneyin.',
             );
-
-        if (sheetContext.mounted) Navigator.pop(sheetContext);
+          }
+        }
       },
       children: [
         TextField(

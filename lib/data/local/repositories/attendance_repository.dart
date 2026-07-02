@@ -31,8 +31,11 @@ class AttendanceRepository {
     final normalized = normalizeDay(date);
     final now = DateTime.now();
 
+    // Soft-delete edilmis satirlari da dahil et: (workerId, workDate) UNIQUE
+    // oldugundan, silinmis bir kayit yeniden isaretlendiginde syncVersion'in
+    // gerilememesi ve dogru satirin guncellenmesi icin gereklidir.
     final existingEntries = await (_db.select(_db.attendanceEntries)
-          ..where((a) => a.workDate.equals(normalized) & a.deletedAt.isNull()))
+          ..where((a) => a.workDate.equals(normalized)))
         .get();
     final existingVersions = {
       for (final e in existingEntries) e.workerId: e.syncVersion,
@@ -62,6 +65,9 @@ class AttendanceRepository {
               siteId: Value(entry.siteId),
               secondSiteId: Value(entry.secondSiteId),
               note: Value(entry.note),
+              // Daha once soft-delete edilmis gunu yeniden dirilt; aksi halde
+              // deletedAt dolu kalir ve asagidaki okuma bos donup crash olur.
+              deletedAt: const Value(null),
               updatedAt: Value(now),
               lastModifiedBy: Value(_ctx.userId),
               deviceId: Value(_ctx.deviceId),
@@ -78,10 +84,10 @@ class AttendanceRepository {
               ..where(
                 (a) =>
                     a.workerId.equals(entry.workerId) &
-                    a.workDate.equals(normalized) &
-                    a.deletedAt.isNull(),
+                    a.workDate.equals(normalized),
               ))
-            .getSingle();
+            .getSingleOrNull();
+        if (saved == null) continue;
 
         await _db.upsertQueueItem(
           id: _uuid.v4(),

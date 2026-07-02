@@ -2,9 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // User profile: only the user themselves can read/write
+    // User profile: only the user themselves can read/write.
+    // ONEMLI: organizationId'yi client KENDISI atayamaz/degistiremez; aksi
+    // halde herhangi bir kullanici kendi profilinde organizationId'yi baska
+    // bir org'un id'siyle degistirip o firmanin tum verisine erisebilir
+    // (capraz-kiracil yetki yukseltmesi). organizationId yalnizca Firebase
+    // Console / Admin SDK ile atanir.
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Kullanici kendi profilini olusturabilir ama organizationId iceremez.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && !("organizationId" in request.resource.data);
+
+      // Guncellemede organizationId oldugu gibi korunmali (degistirilemez,
+      // sonradan eklenemez).
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && (!("organizationId" in request.resource.data)
+                        ? !("organizationId" in resource.data)
+                        : request.resource.data.organizationId
+                            == resource.data.organizationId);
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
     // Organization document

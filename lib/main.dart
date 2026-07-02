@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,34 +26,81 @@ const _useEmulator = bool.fromEnvironment('USE_EMULATOR');
 /// platforma gore otomatik secilir.
 const _emulatorHost = String.fromEnvironment('EMULATOR_HOST');
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  // Tum uygulama tek bir hata bolgesi (zone) icinde calisir; boylece
+  // async gap'lerde kacan hatalar da yakalanir.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  var firebaseReady = false;
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    firebaseReady = true;
-  } catch (_) {
-    // Firebase config bulunmazsa uygulama local-first modda calisir.
-  }
+      // Framework ve platform kaynakli yakalanmamis hatalari tek noktaya topla.
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        _reportFatalError(
+          details.exception,
+          details.stack,
+          source: 'FlutterError',
+        );
+      };
+      WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+        _reportFatalError(error, stack, source: 'PlatformDispatcher');
+        return true;
+      };
 
-  if (firebaseReady && _useEmulator) {
-    await _connectToEmulators();
-  }
+      var firebaseReady = false;
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        firebaseReady = true;
+      } catch (_) {
+        // Firebase config bulunmazsa uygulama local-first modda calisir.
+      }
 
-  await initializeDateFormatting('tr_TR');
+      if (firebaseReady && _useEmulator) {
+        await _connectToEmulators();
+      }
 
-  final prefs = await SharedPreferences.getInstance();
-  final localPrefs = LocalPreferences(prefs);
-  await localPrefs.ensureDeviceId(const Uuid());
+      await initializeDateFormatting('tr_TR');
 
-  runApp(
-    ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: const AriApp(),
-    ),
+      final prefs = await SharedPreferences.getInstance();
+      final localPrefs = LocalPreferences(prefs);
+      await localPrefs.ensureDeviceId(const Uuid());
+
+      // Mevcut kurulumlar icin kalici "yerel DB hangi org'a ait" isaretini bir
+      // kez geriye donuk doldur: cihaz zaten bir org'a bagliysa ve isaret bos
+      // ise mevcut org ile esitle. Boylece ilk cikis-sonrasi hesap degisiminde
+      // de yerel veri temizligi dogru tetiklenir (capraz-org sizintisi).
+      if (localPrefs.localDataOrganizationId.isEmpty &&
+          localPrefs.organizationId.isNotEmpty) {
+        await localPrefs.setLocalDataOrganizationId(localPrefs.organizationId);
+      }
+
+      runApp(
+        ProviderScope(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          child: const AriApp(),
+        ),
+      );
+    },
+    (error, stack) =>
+        _reportFatalError(error, stack, source: 'runZonedGuarded'),
+  );
+}
+
+/// Yakalanmamis tum hatalar buraya duser. Su an yerel log'a yaziyor;
+/// Crashlytics eklendiginde `FirebaseCrashlytics.instance.recordError(...)`
+/// cagrisi da tam olarak buraya baglanir.
+void _reportFatalError(
+  Object error,
+  StackTrace? stack, {
+  required String source,
+}) {
+  developer.log(
+    'Yakalanmamis hata [$source]: $error',
+    name: 'ari_yapi_takip',
+    error: error,
+    stackTrace: stack,
   );
 }
 

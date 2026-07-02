@@ -5,6 +5,7 @@ import '../../../app/design_tokens.dart';
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
 import '../../../shared/ui/app_form_sheet.dart';
+import '../../../shared/ui/snackbar_helper.dart';
 
 const _accent = AppColors.info;
 
@@ -93,26 +94,34 @@ class _PartnerPaymentSheetState extends ConsumerState<_PartnerPaymentSheet> {
         ? null
         : _descriptionController.text.trim();
 
-    final repo = ref.read(partnerPaymentRepositoryProvider);
-    final existing = widget.existing;
-    if (existing != null) {
-      await repo.updatePartnerPayment(
-        paymentId: existing.id,
-        date: existing.paymentDate,
-        amount: amount,
-        partnerName: partnerName,
-        description: description,
-      );
-    } else {
-      await repo.addPartnerPayment(
-        date: DateTime.now(),
-        amount: amount,
-        partnerName: partnerName,
-        description: description,
-      );
+    try {
+      final repo = ref.read(partnerPaymentRepositoryProvider);
+      final existing = widget.existing;
+      if (existing != null) {
+        await repo.updatePartnerPayment(
+          paymentId: existing.id,
+          date: existing.paymentDate,
+          amount: amount,
+          partnerName: partnerName,
+          description: description,
+        );
+      } else {
+        await repo.addPartnerPayment(
+          date: DateTime.now(),
+          amount: amount,
+          partnerName: partnerName,
+          description: description,
+        );
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        showErrorSnackBar(
+          context,
+          'Ortak ödemesi kaydedilemedi. Lütfen tekrar deneyin.',
+        );
+      }
     }
-
-    if (mounted) Navigator.pop(context);
   }
 
   @override
