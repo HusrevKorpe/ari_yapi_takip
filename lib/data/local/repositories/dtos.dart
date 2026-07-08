@@ -28,6 +28,7 @@ class PayrollResult {
     required this.gross,
     required this.deductions,
     required this.net,
+    this.carryOver = 0,
   });
 
   final Worker worker;
@@ -38,6 +39,13 @@ class PayrollResult {
   final double locationBonus;
   final double gross;
   final double deductions;
+
+  /// Ödenmiş dönemlere sonradan girilen/değiştirilen kayıtlardan doğan fark:
+  /// tüm geçmişin net pozisyonu ile bu dönemin net'i arasındaki bakiye.
+  /// Pozitif → çalışanın ekranda görünmeyen alacağı; negatif → fazla ödeme.
+  final double carryOver;
+
+  /// carryOver dahil ödenecek tutar (= tüm geçmişin net pozisyonu).
   final double net;
 }
 

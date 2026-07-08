@@ -67,6 +67,23 @@ class PayrollBreakdownCard extends StatelessWidget {
                     valueColor: const Color(0xFF1A6B5A),
                   ),
                 ],
+                if (result.carryOver > 0) ...[
+                  // Ödenmiş bir döneme sonradan girilen puantaj/borç kaydı:
+                  // önceki dönemde ödenmeden kalan hakediş buraya devreder.
+                  const SizedBox(height: 10),
+                  PayrollSummaryRow(
+                    label: 'Önceki Dönemden Devreden',
+                    value: '+${formatMoney(result.carryOver)}',
+                    valueColor: const Color(0xFF1A6B5A),
+                  ),
+                ] else if (result.carryOver < 0) ...[
+                  const SizedBox(height: 10),
+                  PayrollSummaryRow(
+                    label: 'Önceki Dönem Fazla Ödeme',
+                    value: '-${formatMoney(-result.carryOver)}',
+                    valueColor: const Color(0xFFB60A0A),
+                  ),
+                ],
               ],
             ),
           ),

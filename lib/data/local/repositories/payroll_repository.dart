@@ -32,10 +32,15 @@ class PayrollRepository {
   final Uuid _uuid;
   final SyncContext _ctx;
 
+  /// [includeCarryOver] true ise, ödenmiş dönemlere sonradan girilen
+  /// puantaj/avans/borç kayıtlarından doğan fark (devreden bakiye) hesaba
+  /// katılır ve `net` tüm geçmişin gerçek pozisyonunu gösterir. Geçmiş bir
+  /// ödemenin dönem dökümünü yeniden üretirken false kalmalıdır.
   Future<PayrollResult> calculate({
     required Worker worker,
     required DateTime periodStart,
     required DateTime periodEnd,
+    bool includeCarryOver = false,
   }) async {
     final start = normalizeDay(periodStart);
     final end = DateTime(
@@ -117,6 +122,14 @@ class PayrollRepository {
       );
     }).toList();
 
+    double carryOver = 0;
+    if (includeCarryOver) {
+      final lifetimeNet = await _lifetimeNet(worker);
+      carryOver = lifetimeNet - calculation.net;
+      // Kayan nokta artıklarını bakiye sanmayalım.
+      if (carryOver.abs() < 0.005) carryOver = 0;
+    }
+
     return PayrollResult(
       worker: worker,
       periodStart: start,
@@ -126,8 +139,58 @@ class PayrollRepository {
       locationBonus: calculation.locationBonus,
       gross: calculation.gross,
       deductions: calculation.deductions,
-      net: calculation.net,
+      carryOver: carryOver,
+      net: calculation.net + carryOver,
     );
+  }
+
+  /// Açık dönem yokken (son ödeme bugünü de kapatıyorken) kalan bakiyeyi
+  /// gösteren sonuç: dönem hesabı boş, net = tüm geçmişin pozisyonu.
+  /// Ödeme sabah yapılıp o günün puantajı sonradan girildiğinde bakiye
+  /// ertesi günü beklemeden burada görünür.
+  Future<PayrollResult> carryOnly({
+    required Worker worker,
+    required DateTime asOf,
+  }) async {
+    final day = normalizeDay(asOf);
+    var lifetimeNet = await _lifetimeNet(worker);
+    if (lifetimeNet.abs() < 0.005) lifetimeNet = 0;
+    return PayrollResult(
+      worker: worker,
+      periodStart: day,
+      periodEnd: day,
+      attendanceDays: const [],
+      workedDayEquivalent: 0,
+      locationBonus: 0,
+      gross: 0,
+      deductions: 0,
+      carryOver: lifetimeNet,
+      net: lifetimeNet,
+    );
+  }
+
+  /// Tüm geçmişin net pozisyonu — workerLifetimeStatsProvider ile aynı
+  /// formül: gün karşılığı × yevmiye + prim + borç − avans − ödenen.
+  Future<double> _lifetimeNet(Worker worker) async {
+    final worked = await _attendanceRepository.totalWorkedDayEquivalent(
+      worker.id,
+    );
+    final bonus = worker.receivesBonus
+        ? await _attendanceRepository.totalLocationBonus(worker.id)
+        : 0.0;
+    final totals = await _advanceDebtRepository.lifetimeTotals(worker.id);
+    final payments = await (_db.select(_db.payrollPayments)
+          ..where(
+            (p) => p.workerId.equals(worker.id) & p.deletedAt.isNull(),
+          ))
+        .get();
+    final paid = payments.fold<double>(0, (sum, p) => sum + p.amount);
+
+    return worked * worker.dailyWage +
+        bonus +
+        totals.debts -
+        totals.advances -
+        paid;
   }
 
   Future<void> saveSnapshot(PayrollResult result) async {

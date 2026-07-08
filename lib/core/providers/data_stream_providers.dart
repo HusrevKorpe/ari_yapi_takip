@@ -180,11 +180,20 @@ final workerPayrollProvider =
         : createdAtDay;
   }
 
-  if (periodStart.isAfter(today)) return null;
+  if (periodStart.isAfter(today)) {
+    // Son ödeme bugünü de kapatmış (açık dönem yok). Yine de ödenmiş döneme
+    // aynı gün içinde sonradan puantaj/avans girilmiş olabilir; devreden
+    // bakiye varsa gizlemeden göster.
+    final carry = await ref
+        .watch(payrollRepositoryProvider)
+        .carryOnly(worker: worker, asOf: today);
+    return carry.net == 0 ? null : carry;
+  }
 
   return ref.watch(payrollRepositoryProvider).calculate(
         worker: worker,
         periodStart: periodStart,
         periodEnd: today,
+        includeCarryOver: true,
       );
 });
