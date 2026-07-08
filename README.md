@@ -34,6 +34,33 @@ flutter run
 flutter test
 ```
 
+## Yerel Firebase Emulator (test)
+
+Production projesine (`ari-yapi-takip`) dokunmadan test etmek icin yerel
+Firebase Emulator Suite kullanilir. Emulator verisi cikista `emulator-data/`
+klasorune kaydedilir, bir sonraki acilista geri yuklenir (klasor git'e dahil
+degildir).
+
+```bash
+# 1) Emulator'i baslat (bu terminali ACIK birak)
+./scripts/emulator.sh
+
+# 2) Ayri bir terminalde uygulamayi emulator'a baglayarak calistir ve GIRIS YAP
+flutter run --dart-define=USE_EMULATOR=true
+
+# 3) Giris yaptiktan sonra users/{uid} uyelik kaydini olustur
+#    (firestore.rules, organizationId'yi client'in yazmasini engeller; bu yuzden
+#     emulator'da elle/otomatik seed gerekir)
+./scripts/seed.sh
+
+# 4) Isin bitince emulator terminalinde Ctrl+C  -> veri emulator-data/'ya yazilir
+```
+
+Onemli: Kalicilik yalnizca emulator `./scripts/emulator.sh` ile baslatilip
+**Ctrl+C ile duzgun** kapatildiginda calisir. Zorla kapatilirsa (hard kill)
+export olmaz ve `users/{uid}` kaydi kaybolur; bu durumda sync `permission-denied`
+verir. Calisirken anlik kayit almak icin: `firebase emulators:export ./emulator-data`.
+
 ## Notlar
 
 - Firebase konfiguru degilse uygulama local-first modda calismaya devam eder.
