@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
+import '../data/local/app_database.dart';
+import '../data/local/repositories.dart';
 import '../features/attendance/attendance_page.dart';
 import '../features/auth/auth_gate.dart';
 import '../features/expenses/expenses_tabs_page.dart';
@@ -189,8 +191,17 @@ class _RootShellState extends ConsumerState<RootShell> {
     return Scaffold(
       body: Column(
         children: [
-          if (failedCount > 0) _SyncFailureBanner(count: failedCount),
-          Expanded(child: _pages[_index]),
+          if (failedCount > 0) SyncFailureBanner(count: failedCount),
+          // Banner status bar boşluğunu SafeArea ile kendisi tükettiği için,
+          // banner görünürken alttaki sayfanın AppBar'ı aynı boşluğu ikinci
+          // kez eklemesin diye üst padding'i kaldırıyoruz.
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: failedCount > 0,
+              child: _pages[_index],
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: DecoratedBox(
@@ -207,8 +218,8 @@ class _RootShellState extends ConsumerState<RootShell> {
   }
 }
 
-class _SyncFailureBanner extends ConsumerWidget {
-  const _SyncFailureBanner({required this.count});
+class SyncFailureBanner extends ConsumerWidget {
+  const SyncFailureBanner({super.key, required this.count});
 
   final int count;
 
@@ -216,36 +227,42 @@ class _SyncFailureBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Material(
       color: AppColors.warningLight,
-      child: InkWell(
-        onTap: () => _showDetails(context, ref),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.sync_problem_rounded,
-                color: AppColors.warning,
-                size: 20,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  '$count kayıt senkronize edilemedi — dokunarak incele',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.warning,
-                    fontWeight: FontWeight.w600,
+      // SafeArea: banner içeriği status bar (çentik/saat-pil alanı) altında
+      // kalıp dokunulamaz hale gelmesin diye üst güvenli alanı bırakıyoruz.
+      // Material rengi yine çubuğun arkasına kadar uzanır.
+      child: SafeArea(
+        bottom: false,
+        child: InkWell(
+          onTap: () => _showDetails(context, ref),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.sync_problem_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    '$count kayıt senkronize edilemedi — dokunarak incele',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.warning,
-                size: 20,
-              ),
-            ],
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.warning,
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -254,78 +271,153 @@ class _SyncFailureBanner extends ConsumerWidget {
 
   Future<void> _showDetails(BuildContext context, WidgetRef ref) async {
     final repo = ref.read(syncQueueRepositoryProvider);
-    final items = await repo.failedPermanentItems();
-    if (!context.mounted) return;
-    showDialog<void>(
+    // Dialog anında açılır; kayıtlar içeride FutureBuilder ile yüklenir. Böylece
+    // okuma yavaşlar ya da hata fırlatırsa "hiçbir şey olmaması" yerine ekranda
+    // yükleniyor/hata durumu görünür (eskiden fire-and-forget async içindeki
+    // hata sessizce yutuluyordu).
+    await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Senkronize edilemeyen kayıtlar'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const Divider(height: 12),
-            itemBuilder: (context, i) {
-              final it = items[i];
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${it.entityType} / ${it.action}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'id: ${it.entityId}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (it.lastError != null && it.lastError!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      it.lastError!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFB5390F),
-                      ),
-                    ),
-                  ],
-                ],
+      builder: (dialogContext) {
+        return FutureBuilder<List<SyncQueueItem>>(
+          future: repo.failedPermanentItems(),
+          builder: (context, snapshot) {
+            final items = snapshot.data ?? const <SyncQueueItem>[];
+            final loading =
+                snapshot.connectionState == ConnectionState.waiting;
+
+            final Widget body;
+            if (loading) {
+              body = const Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Center(child: CircularProgressIndicator()),
               );
-            },
-          ),
+            } else if (snapshot.hasError) {
+              body = Text(
+                'Kayıtlar okunamadı:\n${snapshot.error}',
+                style: const TextStyle(fontSize: 12, color: Color(0xFFB5390F)),
+              );
+            } else if (items.isEmpty) {
+              body = const Text(
+                'Kalıcı hataya düşmüş kayıt kalmadı. Uyarı birazdan kaybolur.',
+              );
+            } else {
+              body = ListView.separated(
+                shrinkWrap: true,
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const Divider(height: 12),
+                itemBuilder: (context, i) {
+                  final it = items[i];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${it.entityType} / ${it.action}',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'id: ${it.entityId}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      if (it.lastError != null && it.lastError!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          it.lastError!,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFB5390F),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              );
+            }
+
+            return AlertDialog(
+              title: const Text('Senkronize edilemeyen kayıtlar'),
+              content: SizedBox(width: double.maxFinite, child: body),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Kapat'),
+                ),
+                if (!loading && items.isNotEmpty)
+                  TextButton(
+                    onPressed: () => _discardAll(dialogContext, ref, repo),
+                    child: const Text(
+                      'Kalıcı Olarak Sil',
+                      style: TextStyle(color: AppColors.danger),
+                    ),
+                  ),
+                if (!loading && items.isNotEmpty)
+                  FilledButton(
+                    onPressed: () => _retryAll(dialogContext, ref, repo),
+                    child: const Text('Tümünü Tekrar Dene'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _retryAll(
+    BuildContext dialogContext,
+    WidgetRef ref,
+    SyncQueueRepository repo,
+  ) async {
+    // Orphan (orgId boş) öğeleri önce mevcut orgId ile tamir et; aksi halde
+    // retryFailedPermanent onları boş orgId ile pending'e döndürür ve bir
+    // sonraki flush'ta yine markAbandoned'a düşerler.
+    final orgId = ref.read(syncContextProvider).organizationId;
+    if (orgId.isEmpty) {
+      if (dialogContext.mounted) {
+        showErrorSnackBar(
+          dialogContext,
+          'Oturum bilgisi yüklenmedi — lütfen yeniden giriş yapın.',
+        );
+      }
+      return;
+    }
+    await repo.backfillOrgId(orgId);
+    await repo.retryFailedPermanent();
+    if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+    ref.read(syncServiceProvider).flushPending();
+  }
+
+  Future<void> _discardAll(
+    BuildContext dialogContext,
+    WidgetRef ref,
+    SyncQueueRepository repo,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: dialogContext,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Kayıtları kalıcı olarak sil?'),
+        content: const Text(
+          'Bu kayıtlar sunucuya gönderilemedi. Silerseniz bir daha '
+          'denenmeyecek; ilgili yerel veriler cihazınızda kalır, yalnızca '
+          'senkron kaydı silinir. Devam edilsin mi?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Kapat'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
           ),
           FilledButton(
-            onPressed: () async {
-              // Orphan (orgId boş) öğeleri önce mevcut orgId ile tamir et;
-              // aksi halde retryFailedPermanent onları boş orgId ile pending'e
-              // döndürür ve bir sonraki flush'ta yine markAbandoned'a düşerler.
-              final orgId =
-                  ref.read(syncContextProvider).organizationId;
-              if (orgId.isEmpty) {
-                if (context.mounted) {
-                  showErrorSnackBar(
-                    context,
-                    'Oturum bilgisi yüklenmedi — lütfen yeniden giriş yapın.',
-                  );
-                }
-                return;
-              }
-              await repo.backfillOrgId(orgId);
-              await repo.retryFailedPermanent();
-              if (context.mounted) Navigator.of(context).pop();
-              ref.read(syncServiceProvider).flushPending();
-            },
-            child: const Text('Tümünü Tekrar Dene'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Sil'),
           ),
         ],
       ),
     );
+    if (confirmed != true) return;
+    await repo.deleteFailedPermanent();
+    if (dialogContext.mounted) Navigator.of(dialogContext).pop();
   }
 }
 

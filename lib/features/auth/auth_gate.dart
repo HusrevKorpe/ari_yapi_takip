@@ -102,9 +102,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     super.dispose();
   }
 
+  /// Kalıcı permission-denied sonrası "Tekrar Dene": hatayı temizle, sync'i
+  /// durdur ve organizasyon üyeliğini sunucuda yeniden doğrula. users/{uid}
+  /// kaydı düzeltilmişse sync yeniden başlar; hâlâ eksikse net "kullanıcı
+  /// kaydı tamamlanmamış" hatası ekrana düşer.
+  Future<void> _retryAfterPermissionDenied(AuthState state) async {
+    ref.read(pullSyncFatalErrorProvider.notifier).state = null;
+    await _stopSync();
+    await _ensureOrganization(state);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
+    final pullSyncError = ref.watch(pullSyncFatalErrorProvider);
 
     ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
       next.whenData((state) {
@@ -112,6 +123,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         Future.microtask(() async {
           if (_syncStarted) await _stopSync();
           await ref.read(localPreferencesProvider).clearSession();
+          ref.read(pullSyncFatalErrorProvider.notifier).state = null;
           if (mounted) {
             setState(() {
               _orgBootstrapError = null;
@@ -140,6 +152,18 @@ class _AuthGateState extends ConsumerState<AuthGate> {
             return const LoginPage();
           case AuthStatus.authenticated:
             final ctx = ref.read(syncContextProvider);
+
+            // Sync başladıktan sonra sunucu kalıcı yetki reddi verdiyse
+            // (eksik/yanlış organizationId, kural/üyelik sorunu) sessiz retry
+            // döngüsü yerine kullanıcıya göster. "Tekrar Dene" üyeliği yeniden
+            // doğrular, "Çıkış Yap" oturumu kapatır.
+            if (pullSyncError != null) {
+              return _BootstrapErrorScreen(
+                message: pullSyncError,
+                onRetry: () => _retryAfterPermissionDenied(state),
+                onSignOut: _signOut,
+              );
+            }
 
             if (ctx.isValid) {
               if (!_syncStarted) _startSync(ctx);

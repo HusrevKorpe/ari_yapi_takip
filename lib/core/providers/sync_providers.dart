@@ -38,17 +38,33 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   );
 });
 
+/// Pull-sync akışında kalıcı `permission-denied` (yetki/kural/üyelik sorunu)
+/// oluştuğunda dolan kullanıcıya gösterilecek mesaj; boşsa sorun yok. AuthGate
+/// bunu izleyip sessiz retry döngüsü yerine "Organizasyon yüklenemedi" ekranına
+/// düşer. Geçici ağ hataları buraya YAZILMAZ — yalnızca kalıcı yetki reddi.
+final pullSyncFatalErrorProvider = StateProvider<String?>((ref) => null);
+
 final pullSyncServiceProvider = Provider<PullSyncService>((ref) {
   final ctx = ref.watch(syncContextProvider);
   final service = PullSyncService(
     database: ref.watch(databaseProvider),
     deviceId: ctx.deviceId,
+    onPermissionDenied: (_) {
+      ref.read(pullSyncFatalErrorProvider.notifier).state =
+          _kPullSyncPermissionMessage;
+    },
   );
   ref.onDispose(() {
     service.dispose();
   });
   return service;
 });
+
+const _kPullSyncPermissionMessage =
+    'Sunucu, bu hesabın organizasyon verilerine erişimini reddetti '
+    '(permission-denied). Genellikle kullanıcı kaydınızdaki "organizationId" '
+    'eksik ya da yanlış olduğunda görülür. "Tekrar Dene" ile yeniden '
+    'doğrulayın; sorun sürerse yöneticinizle iletişime geçin.';
 
 final bootstrapServiceProvider = Provider<BootstrapService>((ref) {
   return BootstrapService(

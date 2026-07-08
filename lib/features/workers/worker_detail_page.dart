@@ -8,6 +8,7 @@ import '../../data/local/repositories.dart';
 import '../../shared/formatters.dart';
 import '../../shared/snackbar_helper.dart';
 import '../payroll/widgets/day_detail_expander.dart';
+import '../payroll/widgets/payment_detail_sheet.dart';
 import '../payroll/widgets/payroll_shared.dart';
 import 'widgets/worker_attendance_month_grid.dart';
 import 'widgets/worker_header_card.dart';
@@ -58,7 +59,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
               unselectedLabelStyle: AppTextStyles.button,
               tabs: const [
                 Tab(text: 'Özet'),
-                Tab(text: 'Avans & Borç'),
+                Tab(text: 'Hesap'),
                 Tab(text: 'Yevmiye'),
               ],
             ),
@@ -245,21 +246,31 @@ class _AdvanceDebtTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final debtsAsync = ref.watch(workerAdvanceDebtsProvider(worker.id));
+    final paymentsAsync = ref.watch(workerPaymentsProvider(worker.id));
 
     return Column(
       children: [
         Expanded(
-          child: debtsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) =>
-                Center(child: _ErrorBox(message: 'Liste yüklenemedi: $e')),
-            data: (debts) {
-              if (debts.isEmpty) {
+          child: Builder(
+            builder: (context) {
+              if (debtsAsync.hasError || paymentsAsync.hasError) {
+                final e = debtsAsync.error ?? paymentsAsync.error;
+                return Center(
+                  child: _ErrorBox(message: 'Liste yüklenemedi: $e'),
+                );
+              }
+              final debts = debtsAsync.valueOrNull;
+              final payments = paymentsAsync.valueOrNull;
+              if (debts == null || payments == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (debts.isEmpty && payments.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.xl),
                     child: Text(
-                      'Henüz avans veya borç kaydı yok.',
+                      'Henüz avans, borç veya maaş kaydı yok.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textTertiary,
@@ -269,6 +280,14 @@ class _AdvanceDebtTab extends ConsumerWidget {
                   ),
                 );
               }
+
+              // Avans/borç ve maaş ödemeleri tek kronolojik akışta: patron
+              // işçiyle hesabını tek listede takip edebilsin.
+              final entries = <({DateTime date, AdvanceDebt? debt, PayrollPayment? payment})>[
+                for (final d in debts) (date: d.eventDate, debt: d, payment: null),
+                for (final p in payments) (date: p.paidAt, debt: null, payment: p),
+              ]..sort((a, b) => b.date.compareTo(a.date));
+
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.md,
@@ -276,17 +295,24 @@ class _AdvanceDebtTab extends ConsumerWidget {
                   AppSpacing.md,
                   AppSpacing.md,
                 ),
-                itemCount: debts.length,
-                itemBuilder: (context, i) => _DebtRow(
-                  debt: debts[i],
-                  onEdit: () => _showAdvanceDebtDialog(
-                    context,
-                    workerId: worker.id,
-                    type: debts[i].type,
-                    existing: debts[i],
-                  ),
-                  onDelete: () => _confirmDelete(context, ref, debts[i]),
-                ),
+                itemCount: entries.length,
+                itemBuilder: (context, i) {
+                  final entry = entries[i];
+                  final debt = entry.debt;
+                  if (debt != null) {
+                    return _DebtRow(
+                      debt: debt,
+                      onEdit: () => _showAdvanceDebtDialog(
+                        context,
+                        workerId: worker.id,
+                        type: debt.type,
+                        existing: debt,
+                      ),
+                      onDelete: () => _confirmDelete(context, ref, debt),
+                    );
+                  }
+                  return _SalaryPaymentRow(payment: entry.payment!);
+                },
               );
             },
           ),
@@ -462,6 +488,113 @@ class _DebtRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Maaş ödemesini avans/borç kartlarıyla aynı görsel dilde gösteren satır.
+/// Dokununca ödeme detayı (dönem dökümü + iptal) açılır; düzenleme/silme
+/// ikonları yok çünkü ödeme yalnızca detay sheet'indeki iptal akışıyla
+/// geri alınabilir.
+class _SalaryPaymentRow extends StatelessWidget {
+  const _SalaryPaymentRow({required this.payment});
+
+  final PayrollPayment payment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () => showPaymentDetailSheet(context, payment),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm + 2,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.successLight,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: const Icon(
+                  Icons.payments_rounded,
+                  size: 16,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm + 2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius: BorderRadius.circular(AppRadius.xs),
+                          ),
+                          child: const Text(
+                            'Maaş',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.success,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Text(
+                          formatDate(payment.paidAt),
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textTertiary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Dönem: ${formatDate(payment.periodStart)} – ${formatDate(payment.periodEnd)}',
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                formatMoney(payment.amount),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: AppColors.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -654,6 +787,30 @@ Future<void> _showAdvanceDebtDialog(
                   final note = noteController.text.trim().isEmpty
                       ? null
                       : noteController.text.trim();
+
+                  // Kapalı (zaten ödenmiş) bir döneme geriye dönük giriş, hiçbir
+                  // maaş ödemesinden otomatik düşülmez; yalnızca işçi özetine
+                  // yansır. Sessizce kaybolmuş gibi görünmesin diye kullanıcıyı
+                  // uyarıp onay istiyoruz.
+                  final lastPaidEnd = await ref
+                      .read(paymentRepositoryProvider)
+                      .lastPaymentEnd(workerId);
+                  final entryDay = DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                  );
+                  if (lastPaidEnd != null && !entryDay.isAfter(lastPaidEnd)) {
+                    if (!dialogContext.mounted) return;
+                    final proceed = await _confirmClosedPeriodEntry(
+                      dialogContext,
+                      date: entryDay,
+                      lastPaidEnd: lastPaidEnd,
+                      type: type,
+                    );
+                    if (!proceed) return;
+                  }
+
                   final repo = ref.read(advanceDebtRepositoryProvider);
                   try {
                     if (isEdit) {
@@ -703,6 +860,42 @@ Future<void> _showAdvanceDebtDialog(
       );
     },
   );
+}
+
+/// Seçilen tarih zaten ödenmiş (kapalı) bir döneme denk geldiğinde, girilen
+/// avans/borç maaştan otomatik düşülmeyeceği için kullanıcıdan onay ister.
+/// `true` dönerse kullanıcı yine de kaydetmeyi seçmiştir.
+Future<bool> _confirmClosedPeriodEntry(
+  BuildContext context, {
+  required DateTime date,
+  required DateTime lastPaidEnd,
+  required String type,
+}) async {
+  final label = type == 'advance' ? 'avans' : 'borç';
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Kapalı döneme kayıt'),
+      content: Text(
+        'Seçtiğiniz tarih (${formatDate(date)}) zaten ödenmiş bir döneme '
+        'denk geliyor (son ödenen dönem: ${formatDate(lastPaidEnd)}).\n\n'
+        'Bu $label maaş ödemesinden otomatik düşülmez; yalnızca işçi özetine '
+        'yansır. Otomatik kesinti için tarihi son ödemeden sonraki bir güne '
+        'alabilirsiniz.\n\nYine de kaydetmek istiyor musunuz?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Vazgeç'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Yine de Kaydet'),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
 }
 
 class _AttendanceTab extends StatelessWidget {

@@ -4,20 +4,53 @@ import 'dart:developer' as dev;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:drift/drift.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../local/app_database.dart';
 import 'sync_collections.dart';
 
 class PullSyncService {
-  PullSyncService({required AppDatabase database, required String deviceId})
-      : _db = database,
-        _deviceId = deviceId;
+  PullSyncService({
+    required AppDatabase database,
+    required String deviceId,
+    void Function(Object error)? onPermissionDenied,
+  })  : _db = database,
+        _deviceId = deviceId,
+        _onPermissionDenied = onPermissionDenied;
 
   final AppDatabase _db;
   final String _deviceId;
+
+  /// Kalıcı `permission-denied` (yetki/kural/üyelik sorunu) tespit edildiğinde
+  /// tam olarak bir kez çağrılır. AuthGate bunu yakalayıp sessiz 5 sn'lik retry
+  /// döngüsü yerine kullanıcıya hata ekranı gösterir. Geçici ağ hataları
+  /// (`unavailable` vb.) bu callback'i TETİKLEMEZ — yalnızca kalıcı yetki reddi.
+  final void Function(Object error)? _onPermissionDenied;
+
+  /// Kalıcı yetki reddi üst katmana yalnızca bir kez bildirilsin diye bayrak.
+  /// `dispose()` (dolayısıyla `start()` → "Tekrar Dene") ile sıfırlanır.
+  bool _fatalReported = false;
+
   final Map<String, StreamSubscription<dynamic>> _subs = {};
 
+  /// Koleksiyon başına üst üste gelen dinleyici hatası sayısı. Başarılı bir
+  /// snapshot gelince sıfırlanır; yalnızca eşiği aşınca görünür uyarı basılır.
+  final Map<String, int> _failureCounts = {};
+
   String? _activeOrganizationId;
+
+  /// Bu sayıya ulaşana kadarki ardışık hatalar geçici kabul edilip (yeni açılan
+  /// listen akışına auth token'ın henüz iliştirilmemesi gibi, reconnect ile
+  /// kendini iyileştiren durumlar) sessizce loglanır. Bu sayıda görünür uyarı
+  /// basılır; kalıcı yetki/kural sorununu ayırt etmeyi sağlar.
+  static const _maxTransientFailures = 3;
+
+  /// `permission-denied` bu kadar üst üste tekrarlarsa artık yeni açılan akışa
+  /// token iliştirme gecikmesi değil, kalıcı yetki/kural/üyelik sorunudur;
+  /// senkronizasyon durdurulup `_onPermissionDenied` ile UI'a bildirilir.
+  /// Cold-start'taki geçici token gecikmelerine karşı `_maxTransientFailures`'ın
+  /// üstünde tutulur (~25 sn'lik kendini-iyileştirme payı).
+  static const _fatalPermissionFailures = 5;
 
   bool get _isFirebaseAvailable => Firebase.apps.isNotEmpty;
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -60,28 +93,104 @@ class PullSyncService {
           }
         })
         .listen(
-          (_) {},
+          (_) => resetFailures(entityType),
           onError: (Object error) {
-            dev.log(
-              'PullSync [$entityType] hata: $error — yeniden baglaniyor',
-              name: 'PullSyncService',
-            );
-            Future.delayed(const Duration(seconds: 5), () {
-              if (_activeOrganizationId == organizationId) {
-                _subscribe(organizationId, entityType, collection);
-              }
-            });
+            // Sayım/kalıcı-reddi kararı tek (test edilebilir) noktada verilir;
+            // yalnızca "yeniden bağlan" dönerse 5 sn sonra reconnect edilir.
+            if (handleListenerError(entityType, error)) {
+              Future.delayed(const Duration(seconds: 5), () {
+                if (_activeOrganizationId == organizationId) {
+                  _subscribe(organizationId, entityType, collection);
+                }
+              });
+            }
           },
         );
     _subs[entityType] = sub;
   }
 
+  /// Başarılı bir snapshot geldiğinde koleksiyonun geçici hata sayacını sıfırlar.
+  @visibleForTesting
+  void resetFailures(String entityType) {
+    _failureCounts[entityType] = 0;
+  }
+
+  /// Bir dinleyici hatasını işler: sayacı artırır, kalıcı `permission-denied`
+  /// ise fatal olarak (bir kez) raporlayıp döngüyü keser. Çağıranın yeniden
+  /// bağlanması gerekiyorsa `true`, döngü kesildiyse `false` döner.
+  @visibleForTesting
+  bool handleListenerError(String entityType, Object error) {
+    final failures = (_failureCounts[entityType] ?? 0) + 1;
+    _failureCounts[entityType] = failures;
+
+    // Kalıcı yetki reddi: yeni açılan listen akışına token iliştirme gecikmesi
+    // ilk birkaç reconnect'te iyileşir; bu eşiği de aşan `permission-denied`
+    // gerçek bir kural/üyelik sorunudur. Kurallar tüm koleksiyonlar için aynı
+    // olduğundan biri kalıcı reddediliyorsa hepsi reddedilir — dinleyicileri
+    // durdur ve sessiz döngü yerine üst katmana (AuthGate) bir kez bildir.
+    if (_isPermissionDenied(error) && failures >= _fatalPermissionFailures) {
+      dev.log(
+        'PullSync [$entityType] kalıcı permission-denied ($failures. deneme) '
+        '— senkronizasyon durduruldu, kullanıcıya bildiriliyor: $error',
+        name: 'PullSyncService',
+        level: 1000, // SEVERE
+        error: error,
+      );
+      _reportFatalPermissionDenied(error);
+      return false; // Yeniden bağlanma; döngüyü kes.
+    }
+
+    // İlk birkaç permission-denied çoğunlukla yeni açılan listen akışına auth
+    // token'ının henüz iliştirilmemesinden kaynaklanır ve reconnect ile iyileşir
+    // — bunları düşük seviyede sessizce logla. Yalnızca üst üste eşiği aşınca
+    // (kalıcı yetki/kural sorunu ihtimali) tam olarak bir kez görünür uyarı bas;
+    // sonrasında her 5 sn'de tekrar etmemek için tekrar sessizleş.
+    if (failures < _maxTransientFailures) {
+      dev.log(
+        'PullSync [$entityType] geçici hata (#$failures), '
+        'yeniden baglaniyor: $error',
+        name: 'PullSyncService',
+        level: 500, // FINE
+      );
+    } else if (failures == _maxTransientFailures) {
+      dev.log(
+        'PullSync [$entityType] üst üste $failures kez başarısız — '
+        'kalıcı yetki/kural sorunu olabilir, yeniden baglaniyor: $error',
+        name: 'PullSyncService',
+        level: 900, // WARNING
+        error: error,
+      );
+    }
+    return true;
+  }
+
   Future<void> dispose() async {
+    final cancellations = _subs.values.map((sub) => sub.cancel()).toList();
+    _subs.clear();
+    _failureCounts.clear();
+    _activeOrganizationId = null;
+    _fatalReported = false;
+    await Future.wait(cancellations);
+  }
+
+  bool _isPermissionDenied(Object error) =>
+      error is FirebaseException && error.code == 'permission-denied';
+
+  /// Kalıcı yetki reddini üst katmana bir kez bildirir ve tüm pull
+  /// dinleyicilerini durdurur — kalıcı hatada 5 sn'lik yeniden bağlanma döngüsü
+  /// anlamsızdır. `_activeOrganizationId` sıfırlandığından diğer koleksiyonların
+  /// beklemede olan yeniden-bağlanma zamanlayıcıları da devre dışı kalır.
+  /// `start()` (Tekrar Dene) yeniden çağrılınca `dispose()` bayrağı sıfırlar.
+  void _reportFatalPermissionDenied(Object error) {
+    if (_fatalReported) return;
+    _fatalReported = true;
     for (final sub in _subs.values) {
-      await sub.cancel();
+      sub.cancel();
     }
     _subs.clear();
+    _failureCounts.clear();
     _activeOrganizationId = null;
+    _onPermissionDenied?.call(error);
   }
 
   Future<void> _apply(String entityType, Map<String, dynamic> data) async {

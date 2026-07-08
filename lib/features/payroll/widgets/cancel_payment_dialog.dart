@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
+import '../../../data/local/repositories.dart';
 import '../../../shared/snackbar_helper.dart';
 
 Future<void> cancelPaymentFlow(
@@ -31,6 +32,16 @@ Future<void> cancelPaymentFlow(
     if (sheetContext.mounted) {
       Navigator.pop(sheetContext);
       showSuccessSnackBar(sheetContext, 'Odeme iptal edildi');
+    }
+  } on NotLatestPaymentException {
+    // UI normalde bu butonu en son olmayan ödemede gizliyor; yine de yarış
+    // (başka cihazdan yeni ödeme senkronu) durumuna karşı anlaşılır mesaj ver.
+    if (sheetContext.mounted) {
+      showErrorSnackBar(
+        sheetContext,
+        'Yalnizca en son odeme iptal edilebilir. Once sonraki donem '
+        'odemelerini iptal edin.',
+      );
     }
   } catch (e) {
     if (sheetContext.mounted) {

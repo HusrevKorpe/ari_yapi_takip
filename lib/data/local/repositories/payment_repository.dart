@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../shared/month_utils.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
@@ -27,6 +28,26 @@ class DuplicatePaymentException implements Exception {
       'Bu döneme ait ödeme zaten kayıtlı (id=$existingId).';
 }
 
+/// En son olmayan (arada kalan) bir ödemeyi iptal etme denendiğinde fırlatılır.
+/// Açık dönem her zaman en son ödemenin bitişinden bir gün sonra başladığı için,
+/// aradaki bir dönemi silmek o dönemi ne ödenmiş ne de yeniden hesaplanabilir
+/// bırakır (maaş sessizce kaybolur). Bu yüzden yalnızca en son ödeme iptal
+/// edilebilir; daha ileri bir dönemi kapatan aktif ödeme varsa iptal reddedilir.
+class NotLatestPaymentException implements Exception {
+  NotLatestPaymentException({
+    required this.paymentId,
+    required this.laterPaymentId,
+  });
+
+  final String paymentId;
+  final String laterPaymentId;
+
+  @override
+  String toString() =>
+      'Yalnızca en son ödeme iptal edilebilir (paymentId=$paymentId, '
+      'daha yeni ödeme=$laterPaymentId).';
+}
+
 class PaymentRepository {
   PaymentRepository(this._db, this._uuid, this._ctx);
 
@@ -34,11 +55,19 @@ class PaymentRepository {
   final Uuid _uuid;
   final SyncContext _ctx;
 
+  /// [amount] dönemin maaş olarak kapatılan kısmıdır. Kullanıcı hak edişten
+  /// fazla öderse fazlalık [excessAdvance] olarak verilir ve aynı transaction
+  /// içinde otomatik bir avans kaydı açılır — ödeme yazılıp avans yazılamazsa
+  /// bakiye sessizce kayacağı için iki kayıt atomik olmak zorunda. Hak edişten
+  /// az ödemede ek kayıt gerekmez; eksik, devreden bakiye (carryOver) olarak
+  /// sonraki dönemde kendiliğinden görünür.
   Future<void> recordPayment({
     required String workerId,
     required DateTime periodStart,
     required DateTime periodEnd,
     required double amount,
+    double excessAdvance = 0,
+    String? excessAdvanceNote,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now();
@@ -94,6 +123,40 @@ class PaymentRepository {
         payload: saved.toSyncMap(),
         organizationId: _ctx.organizationId,
       );
+
+      if (excessAdvance > 0) {
+        // Ödeme günü genelde kapanan dönemin içinde kaldığından bu avans
+        // sonraki dönemin kesintisine girmez; lifetime pozisyon üzerinden
+        // devreden bakiyeye (carryOver) yansıyarak sonraki maaştan düşer.
+        final advanceId = _uuid.v4();
+        await _db.into(_db.advanceDebts).insert(
+          AdvanceDebtsCompanion.insert(
+            id: advanceId,
+            workerId: workerId,
+            eventDate: normalizeDay(now),
+            type: 'advance',
+            amount: excessAdvance,
+            note: Value(excessAdvanceNote ?? 'Maaş ödemesi fazlası'),
+            settledMonth: monthKey(now),
+            lastModifiedBy: Value(_ctx.userId),
+            deviceId: Value(_ctx.deviceId),
+            syncVersion: const Value(1),
+          ),
+        );
+
+        final savedAdvance = await (_db.select(_db.advanceDebts)
+              ..where((a) => a.id.equals(advanceId)))
+            .getSingle();
+
+        await _db.upsertQueueItem(
+          id: _uuid.v4(),
+          entityType: 'advance_debt',
+          entityId: advanceId,
+          action: 'upsert',
+          payload: savedAdvance.toSyncMap(),
+          organizationId: _ctx.organizationId,
+        );
+      }
     });
   }
 
@@ -128,7 +191,31 @@ class PaymentRepository {
       final existing = await (_db.select(_db.payrollPayments)
             ..where((p) => p.id.equals(paymentId)))
           .getSingleOrNull();
-      final nextVersion = (existing?.syncVersion ?? 0) + 1;
+      // Kayıt yok ya da zaten iptal edilmişse sessizce çık (idempotent).
+      if (existing == null || existing.deletedAt != null) return;
+
+      // Yalnızca en son (periodEnd'i en büyük) aktif ödeme iptal edilebilir.
+      // Açık dönem daima en son ödemenin bitişinden sonra başladığından, arada
+      // kalan bir ödemeyi silmek o dönemin maaşını erişilemez hâle getirir.
+      // Bu işçi için daha ileri bir dönemi kapatan aktif ödeme varsa iptali
+      // reddet; kullanıcı önce sonraki dönemleri iptal etmelidir.
+      final later = await (_db.select(_db.payrollPayments)
+            ..where(
+              (p) =>
+                  p.workerId.equals(existing.workerId) &
+                  p.deletedAt.isNull() &
+                  p.periodEnd.isBiggerThanValue(existing.periodEnd),
+            )
+            ..limit(1))
+          .getSingleOrNull();
+      if (later != null) {
+        throw NotLatestPaymentException(
+          paymentId: paymentId,
+          laterPaymentId: later.id,
+        );
+      }
+
+      final nextVersion = existing.syncVersion + 1;
 
       await (_db.update(_db.payrollPayments)
             ..where((p) => p.id.equals(paymentId)))

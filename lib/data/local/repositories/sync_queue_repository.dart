@@ -163,6 +163,17 @@ class SyncQueueRepository {
     );
   }
 
+  /// Kalıcı hataya düşmüş kuyruk öğelerini tamamen siler. Retry ile
+  /// düzeltilemeyen (ör. silinmiş üst kayda bağlı ya da bozuk) öğeler aksi
+  /// halde banner'ı sonsuza dek gösterir. Bu yalnızca senkron kuyruğu kaydını
+  /// siler — ilgili yerel veri (çalışan/ödeme vb.) cihazda kalır; sadece
+  /// sunucuya gönderilmemiş olur.
+  Future<int> deleteFailedPermanent() {
+    return (_db.delete(_db.syncQueueItems)
+          ..where((q) => q.status.equals('failed_permanent')))
+        .go();
+  }
+
   Map<String, dynamic> decodePayload(String payload) {
     try {
       return jsonDecode(payload) as Map<String, dynamic>;

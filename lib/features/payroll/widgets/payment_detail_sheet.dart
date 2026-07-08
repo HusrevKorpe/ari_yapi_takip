@@ -31,6 +31,18 @@ class _PaymentDetailSheet extends ConsumerWidget {
     final snapshotAsync = ref.watch(_paymentSnapshotProvider(payment));
     final daysAsync = ref.watch(paymentBreakdownProvider(payment));
 
+    // İptal yalnızca en son (periodEnd'i en büyük) ödemeye izinli. Aradaki bir
+    // ödemeyi iptal etmek o dönemi erişilemez kılar; repository de bunu guard
+    // ile reddediyor, burada butonu baştan gizliyoruz. Liste henüz gelmediyse
+    // buton gösterilmez (güvenli varsayım) — repository yine korur.
+    final payments = ref.watch(workerPaymentsProvider(payment.workerId));
+    final isLatest = payments.maybeWhen(
+      data: (list) => !list.any(
+        (p) => p.id != payment.id && p.periodEnd.isAfter(payment.periodEnd),
+      ),
+      orElse: () => false,
+    );
+
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.8,
@@ -65,6 +77,7 @@ class _PaymentDetailSheet extends ConsumerWidget {
                 payment: payment,
                 snapshot: snapshot,
                 days: daysAsync.asData?.value ?? const [],
+                canCancel: isLatest,
               ),
             ),
           ),
@@ -88,11 +101,13 @@ class _DetailBody extends StatelessWidget {
     required this.payment,
     required this.snapshot,
     required this.days,
+    required this.canCancel,
   });
 
   final PayrollPayment payment;
   final PayrollSnapshot? snapshot;
   final List<PayrollAttendanceDay> days;
+  final bool canCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -171,27 +186,60 @@ class _DetailBody extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 24),
-        SizedBox(
-          height: 50,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFB60A0A),
-              side: const BorderSide(color: Color(0xFFFF5252)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        if (canCancel)
+          SizedBox(
+            height: 50,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFB60A0A),
+                side: const BorderSide(color: Color(0xFFFF5252)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => cancelPaymentFlow(context, payment),
+              icon: const Icon(Icons.undo_rounded, size: 18),
+              label: const Text(
+                'Ödemeyi İptal Et',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            onPressed: () => cancelPaymentFlow(context, payment),
-            icon: const Icon(Icons.undo_rounded, size: 18),
-            label: const Text(
-              'Ödemeyi İptal Et',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F0F2),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFDCDCDD)),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: Color(0xFF888888),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Bu ödeme iptal edilemez. Yalnızca en son ödeme iptal '
+                    'edilebilir; önce daha sonraki dönemlerin ödemelerini iptal '
+                    'edin.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.35,
+                      color: Color(0xFF6E6E6E),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
       ],
     );
   }

@@ -26,6 +26,11 @@ class WorkersPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Çalışanlar'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Çıkış Yap',
+            onPressed: () => _confirmSignOut(context, ref),
+          ),
           AppBarAddButton(
             onPressed: () => showAddWorkerSheet(context, ref),
           ),
@@ -52,6 +57,31 @@ class WorkersPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Çıkış yapılsın mı?'),
+        content: const Text(
+          'Oturumunuz kapatılacak ve giriş ekranına döneceksiniz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Çıkış Yap'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(authRepositoryProvider).signOut();
+    }
   }
 
   void _showWorkerDetail(BuildContext context, Worker worker) {
