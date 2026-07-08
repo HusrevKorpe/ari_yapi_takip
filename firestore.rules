@@ -45,8 +45,13 @@ service cloud.firestore {
 
     // Kullanıcının kendi organizasyonuna üye olup olmadığını kontrol et
     function isOrgMember(orgId) {
+      // NOT: get() var olmayan dokumanda null doner; Resource'ta `.exists`
+      // property'si YOKTUR (varlik kontrolu `!= null` ile yapilir). Onceki
+      // `userDoc.exists` ifadesi, kullanici dokumani VAR oldugunda bile
+      // "Property exists is undefined" degerlendirme hatasi firlatip her org
+      // uyesini reddediyordu — offline-first oldugu icin sessizce fark edilmedi.
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return userDoc.exists && userDoc.data.organizationId == orgId;
+      return userDoc != null && userDoc.data.organizationId == orgId;
     }
 
     // Diğer her şeyi reddet
