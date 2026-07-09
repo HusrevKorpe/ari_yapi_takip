@@ -150,6 +150,19 @@ class SyncQueueRepository {
     );
   }
 
+  /// Kalıcı hatadaki bir öğenin son hata mesajını günceller; durumu değişmez.
+  /// Otomatik sonda (probeFailedPermanent) başarısız olduğunda güncel red
+  /// sebebi banner detayında görünsün diye kullanılır. Where'daki status
+  /// koşulu, eşzamanlı "Tümünü Tekrar Dene" ile pending'e dönmüş bir öğenin
+  /// üzerine yazmayı önler.
+  Future<void> updateFailedPermanentError(String id, String? error) {
+    return (_db.update(_db.syncQueueItems)
+          ..where(
+            (q) => q.id.equals(id) & q.status.equals('failed_permanent'),
+          ))
+        .write(SyncQueueItemsCompanion(lastError: Value(error)));
+  }
+
   Future<int> retryFailedPermanent() {
     return (_db.update(_db.syncQueueItems)
           ..where((q) => q.status.equals('failed_permanent')))

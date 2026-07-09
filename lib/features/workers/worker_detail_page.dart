@@ -30,7 +30,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -60,6 +60,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
               tabs: const [
                 Tab(text: 'Özet'),
                 Tab(text: 'Hesap'),
+                Tab(text: 'Avans/Borç'),
                 Tab(text: 'Yevmiye'),
               ],
             ),
@@ -70,6 +71,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
         controller: _tabController,
         children: [
           _SummaryTab(worker: widget.worker),
+          _SalaryTab(worker: widget.worker),
           _AdvanceDebtTab(worker: widget.worker),
           _AttendanceTab(worker: widget.worker),
         ],
@@ -238,6 +240,56 @@ class _PayrollSummaryCard extends StatelessWidget {
   }
 }
 
+/// Sadece maaş ödemelerini kronolojik olarak listeleyen "Hesap" sekmesi.
+/// Maaş ekleme buradan yapılmaz (Maaş Ver akışı payroll ekranındadır); satıra
+/// dokununca ödeme detayı (dönem dökümü + iptal) açılır.
+class _SalaryTab extends ConsumerWidget {
+  const _SalaryTab({required this.worker});
+
+  final Worker worker;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paymentsAsync = ref.watch(workerPaymentsProvider(worker.id));
+
+    return paymentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: _ErrorBox(message: 'Liste yüklenemedi: $e'),
+      ),
+      data: (payments) {
+        if (payments.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(AppSpacing.xl),
+              child: Text(
+                'Henüz maaş ödemesi yok.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textTertiary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        }
+        final sorted = [...payments]
+          ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xxl,
+          ),
+          itemCount: sorted.length,
+          itemBuilder: (context, i) => _SalaryPaymentRow(payment: sorted[i]),
+        );
+      },
+    );
+  }
+}
+
 class _AdvanceDebtTab extends ConsumerWidget {
   const _AdvanceDebtTab({required this.worker});
 
@@ -246,31 +298,22 @@ class _AdvanceDebtTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final debtsAsync = ref.watch(workerAdvanceDebtsProvider(worker.id));
-    final paymentsAsync = ref.watch(workerPaymentsProvider(worker.id));
 
     return Column(
       children: [
         Expanded(
-          child: Builder(
-            builder: (context) {
-              if (debtsAsync.hasError || paymentsAsync.hasError) {
-                final e = debtsAsync.error ?? paymentsAsync.error;
-                return Center(
-                  child: _ErrorBox(message: 'Liste yüklenemedi: $e'),
-                );
-              }
-              final debts = debtsAsync.valueOrNull;
-              final payments = paymentsAsync.valueOrNull;
-              if (debts == null || payments == null) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (debts.isEmpty && payments.isEmpty) {
+          child: debtsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: _ErrorBox(message: 'Liste yüklenemedi: $e'),
+            ),
+            data: (debts) {
+              if (debts.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.xl),
                     child: Text(
-                      'Henüz avans, borç veya maaş kaydı yok.',
+                      'Henüz avans veya borç kaydı yok.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textTertiary,
@@ -281,12 +324,8 @@ class _AdvanceDebtTab extends ConsumerWidget {
                 );
               }
 
-              // Avans/borç ve maaş ödemeleri tek kronolojik akışta: patron
-              // işçiyle hesabını tek listede takip edebilsin.
-              final entries = <({DateTime date, AdvanceDebt? debt, PayrollPayment? payment})>[
-                for (final d in debts) (date: d.eventDate, debt: d, payment: null),
-                for (final p in payments) (date: p.paidAt, debt: null, payment: p),
-              ]..sort((a, b) => b.date.compareTo(a.date));
+              final sorted = [...debts]
+                ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
 
               return ListView.builder(
                 padding: const EdgeInsets.fromLTRB(
@@ -295,23 +334,19 @@ class _AdvanceDebtTab extends ConsumerWidget {
                   AppSpacing.md,
                   AppSpacing.md,
                 ),
-                itemCount: entries.length,
+                itemCount: sorted.length,
                 itemBuilder: (context, i) {
-                  final entry = entries[i];
-                  final debt = entry.debt;
-                  if (debt != null) {
-                    return _DebtRow(
-                      debt: debt,
-                      onEdit: () => _showAdvanceDebtDialog(
-                        context,
-                        workerId: worker.id,
-                        type: debt.type,
-                        existing: debt,
-                      ),
-                      onDelete: () => _confirmDelete(context, ref, debt),
-                    );
-                  }
-                  return _SalaryPaymentRow(payment: entry.payment!);
+                  final debt = sorted[i];
+                  return _DebtRow(
+                    debt: debt,
+                    onEdit: () => _showAdvanceDebtDialog(
+                      context,
+                      workerId: worker.id,
+                      type: debt.type,
+                      existing: debt,
+                    ),
+                    onDelete: () => _confirmDelete(context, ref, debt),
+                  );
                 },
               );
             },

@@ -31,6 +31,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         syncService.startConnectivityWatch();
         await syncService.flushPending();
         await ref.read(pullSyncServiceProvider).start(ctx.organizationId);
+        // Kalıcı hataya düşmüş öğelere her açılışta otomatik bir şans ver —
+        // sunucu tarafı sorun (ör. bozuk kural) giderildiyse kullanıcı elle
+        // "Tümünü Tekrar Dene"ye basmadan kurtulurlar.
+        await syncService.probeFailedPermanent();
       } catch (e, st) {
         dev.log(
           'Sync başlatma hatası: $e',

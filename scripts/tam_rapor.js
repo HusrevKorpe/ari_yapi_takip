@@ -1,11 +1,17 @@
 // Tam veri raporu — Firestore'daki TÜM geçmiş veriyi (yoklama, avans, borç,
-// şantiye primi, maaş ödemeleri) her çalışan için çeker, hesaplar ve
-// Masaüstüne PDF raporu üretir.
+// şantiye primi, maaş ödemeleri) her AKTİF çalışan için çeker, hesaplar ve
+// Masaüstüne PDF raporu üretir. Ayrılan (aktifMi=false) ve silinen çalışanlar
+// rapora dahil edilmez.
 //
 // Hesap (çalışan başına, tüm geçmiş — workerLifetimeStats mantığı):
 //   Hakediş  = gün karşılığı × yevmiye + şantiye primi
 //   Bakiye   = Hakediş + işveren borcu − avans − ödenen maaş
 //   (pozitif bakiye = işveren çalışana borçlu)
+//
+// Uygulama ↔ Firebase kıyası: Maaş Ver ekranının modeli
+// (workerPayrollProvider + includeCarryOver) bu veriden yeniden kurulur:
+//   Ekran = açık dönem neti (son ödemeden bugüne) + devreden bakiye
+// ve Firebase'den hesaplanan gerçek bakiye ile yan yana gösterilir.
 //
 // Kullanım:
 //   node tam_rapor.js            (Masaüstüne PDF + HTML yazar)
@@ -47,6 +53,11 @@ const fmtDate = (iso) => {
   const d = new Date(iso);
   if (isNaN(d)) return String(iso);
   return d.toLocaleDateString('tr-TR');
+};
+
+const dayOnly = (v) => {
+  const d = new Date(v);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 };
 
 const AYLAR = [
@@ -177,7 +188,73 @@ function computeWorker(w, org) {
   totals.hakedis = totals.yevmiye + totals.prim;
   totals.bakiye = totals.hakedis + totals.borc - totals.avans - totals.odenen;
 
-  return { w, att, ads, debts, pays, months, totals, wage, receivesBonus };
+  // ---- Maaş Ver ekranı modeli (workerPayrollProvider + includeCarryOver) ----
+  // periodStart = son ödemenin donemBitisi + 1 gün;
+  //               ödeme yoksa min(en erken yoklama, olusturulmaTarihi)
+  const todayD = dayOnly(new Date());
+  let periodStart;
+  if (pays.length) {
+    const lastEnd = pays.map((x) => dayOnly(x.donemBitisi)).sort((a, b) => b - a)[0];
+    periodStart = new Date(
+      lastEnd.getFullYear(),
+      lastEnd.getMonth(),
+      lastEnd.getDate() + 1
+    );
+  } else {
+    const created = w.olusturulmaTarihi ? dayOnly(w.olusturulmaTarihi) : todayD;
+    const earliest = att.length
+      ? att.map((a) => dayOnly(a.tarih)).sort((a, b) => a - b)[0]
+      : null;
+    periodStart = earliest && earliest < created ? earliest : created;
+  }
+
+  let screen;
+  if (periodStart > todayD) {
+    // carryOnly: açık dönem yok — ekranda sadece devreden görünür
+    screen = {
+      periodStart: null,
+      periodEnd: todayD,
+      eq: 0,
+      hakedis: 0,
+      kesinti: 0,
+      net: 0,
+      devreden: Math.abs(totals.bakiye) < 0.005 ? 0 : totals.bakiye,
+      ekran: Math.abs(totals.bakiye) < 0.005 ? 0 : totals.bakiye,
+    };
+  } else {
+    const inR = (v) => {
+      const t = dayOnly(v).getTime();
+      return t >= periodStart.getTime() && t <= todayD.getTime();
+    };
+    const attR = att.filter((a) => inR(a.tarih));
+    const eq = attR.reduce((s, a) => s + eqOf(a.durum), 0);
+    const hakedis = attR.reduce(
+      (s, a) => s + eqOf(a.durum) * wage + primOf(a),
+      0
+    );
+    const avansR = ads
+      .filter((x) => inR(x.islemTarihi))
+      .reduce((s, x) => s + (Number(x.tutar) || 0), 0);
+    const borcR = debts
+      .filter((x) => inR(x.islemTarihi))
+      .reduce((s, x) => s + (Number(x.tutar) || 0), 0);
+    const kesinti = avansR - borcR;
+    const net = hakedis - kesinti;
+    let devreden = totals.bakiye - net;
+    if (Math.abs(devreden) < 0.005) devreden = 0; // uygulamadaki eşikle aynı
+    screen = {
+      periodStart,
+      periodEnd: todayD,
+      eq,
+      hakedis,
+      kesinti,
+      net,
+      devreden,
+      ekran: net + devreden,
+    };
+  }
+
+  return { w, att, ads, debts, pays, months, totals, screen, wage, receivesBonus };
 }
 
 // ---------------------------------------------------------------- HTML
@@ -419,7 +496,7 @@ function buildHtml(orgId, results, sites) {
 
 <div class="genel">
   <h1>ARI SAHA — TAM VERİ RAPORU</h1>
-  <p class="sub">Rapor tarihi: ${stamp} &middot; Organizasyon: ${esc(orgId)} &middot; Kapsam: tüm geçmiş kayıtlar (yoklama, avans, borç, prim, maaş ödemeleri)</p>
+  <p class="sub">Rapor tarihi: ${stamp} &middot; Organizasyon: ${esc(orgId)} &middot; Kapsam: aktif çalışanlar, tüm geçmiş kayıtlar (yoklama, avans, borç, prim, maaş ödemeleri)</p>
   ${siteList ? `<p class="meta">Şantiyeler: ${siteList}</p>` : ''}
 
   <h3>Genel özet — tüm çalışanlar</h3>
@@ -448,7 +525,50 @@ function buildHtml(orgId, results, sites) {
   )}
   <p class="meta">Kalan bakiye = yevmiye + prim + işveren borcu − avans − ödenen.
   Pozitif: işveren çalışana borçlu. Negatif: çalışan hakedişinden fazla almış.</p>
-  <p class="foot">Kaynak: Firestore &middot; organizations/${esc(orgId)} &middot; silinmiş kayıtlar hariç &middot; uygulamadaki PayrollCalculator / workerLifetimeStats mantığıyla birebir.</p>
+
+  <h3>Uygulama ↔ Firebase kıyası — Maaş Ver ekranı</h3>
+  ${tbl(
+    [
+      { t: 'Çalışan' },
+      { t: 'Açık dönem' },
+      { t: 'Dönem hakedişi', num: 1 },
+      { t: 'Kesinti (avans−borç)', num: 1 },
+      { t: 'Dönem net', num: 1 },
+      { t: 'Devreden', num: 1 },
+      { t: 'Uygulamada görünmesi gereken', num: 1 },
+      { t: 'Firebase gerçek', num: 1 },
+      { t: 'Uyum', num: 1 },
+    ],
+    results.map((r) => {
+      const s = r.screen;
+      const fark = r.totals.bakiye - s.ekran;
+      const uyum =
+        Math.abs(fark) < 0.01
+          ? '<b class="pos">✓</b>'
+          : `<b class="neg">✗ ${TL(fark)}</b>`;
+      return [
+        esc(r.w.adSoyad),
+        s.periodStart
+          ? `${fmtDate(s.periodStart)} → bugün`
+          : '<span class="empty">açık dönem yok</span>',
+        TL(s.hakedis),
+        TL(s.kesinti),
+        TL(s.net),
+        TL(s.devreden),
+        `<b>${TL(s.ekran)}</b>`,
+        `<b>${TL(r.totals.bakiye)}</b>`,
+        uyum,
+      ];
+    })
+  )}
+  <p class="meta"><b>Uygulamada görünmesi gereken</b> = açık dönem neti (son ödemeden bugüne)
+  + devreden bakiye — Maaş Ver ekranının birebir hesabı (workerPayrollProvider + carryOver).
+  <b>Firebase gerçek</b> = tüm geçmişten hesaplanan bakiye. İkisi bu raporda aynı Firestore
+  verisinden türetildiği için Uyum ✓ olmalıdır; uygulamada (telefonda) farklı bir tutar
+  görüyorsan cihazın yerel verisi Firebase ile senkron değil demektir — uygulamayı internete
+  bağlayıp senkronun bitmesini bekle.
+  <b>Devreden</b> = ödenmiş dönemlere sonradan girilen puantaj/avans/borç kayıtlarının net etkisi.</p>
+  <p class="foot">Kaynak: Firestore &middot; organizations/${esc(orgId)} &middot; sadece aktif çalışanlar &middot; silinmiş kayıtlar hariç &middot; uygulamadaki PayrollCalculator / workerLifetimeStats mantığıyla birebir.</p>
 </div>
 
 ${results.map((r) => workerSection(r, sites)).join('\n')}
@@ -467,9 +587,11 @@ async function run() {
 
   for (const orgRef of orgs) {
     const org = await fetchOrg(orgRef);
-    if (org.workers.length === 0) continue;
+    // Sadece aktif çalışanlar (ayrılanlar ve silinenler hariç)
+    const activeWorkers = org.workers.filter((w) => w.aktifMi !== false);
+    if (activeWorkers.length === 0) continue;
 
-    const results = org.workers.map((w) => computeWorker(w, org));
+    const results = activeWorkers.map((w) => computeWorker(w, org));
     const html = buildHtml(orgRef.id, results, org.sites);
 
     const base =
