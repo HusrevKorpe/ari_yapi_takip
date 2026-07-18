@@ -1437,6 +1437,17 @@ class $SitesTable extends Sites with TableInfo<$SitesTable, Site> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _bonusHistoryMeta = const VerificationMeta(
+    'bonusHistory',
+  );
+  @override
+  late final GeneratedColumn<String> bonusHistory = GeneratedColumn<String>(
+    'bonus_history',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isActiveMeta = const VerificationMeta(
     'isActive',
   );
@@ -1486,6 +1497,7 @@ class $SitesTable extends Sites with TableInfo<$SitesTable, Site> {
     name,
     code,
     dailyBonus,
+    bonusHistory,
     isActive,
     createdAt,
     updatedAt,
@@ -1559,6 +1571,15 @@ class $SitesTable extends Sites with TableInfo<$SitesTable, Site> {
         dailyBonus.isAcceptableOrUnknown(data['daily_bonus']!, _dailyBonusMeta),
       );
     }
+    if (data.containsKey('bonus_history')) {
+      context.handle(
+        _bonusHistoryMeta,
+        bonusHistory.isAcceptableOrUnknown(
+          data['bonus_history']!,
+          _bonusHistoryMeta,
+        ),
+      );
+    }
     if (data.containsKey('is_active')) {
       context.handle(
         _isActiveMeta,
@@ -1618,6 +1639,10 @@ class $SitesTable extends Sites with TableInfo<$SitesTable, Site> {
         DriftSqlType.double,
         data['${effectivePrefix}daily_bonus'],
       )!,
+      bonusHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bonus_history'],
+      ),
       isActive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
@@ -1648,6 +1673,11 @@ class Site extends DataClass implements Insertable<Site> {
   final String name;
   final String code;
   final double dailyBonus;
+
+  /// Tarih bazlı prim geçmişi (JSON). Null/boş = hiç prim değişikliği yok,
+  /// tüm günler güncel [dailyBonus] ile fiyatlanır (eski davranış).
+  /// Bkz. BonusHistory. Yevmiyedeki wageHistory ile aynı mantık.
+  final String? bonusHistory;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -1660,6 +1690,7 @@ class Site extends DataClass implements Insertable<Site> {
     required this.name,
     required this.code,
     required this.dailyBonus,
+    this.bonusHistory,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -1677,6 +1708,9 @@ class Site extends DataClass implements Insertable<Site> {
     map['name'] = Variable<String>(name);
     map['code'] = Variable<String>(code);
     map['daily_bonus'] = Variable<double>(dailyBonus);
+    if (!nullToAbsent || bonusHistory != null) {
+      map['bonus_history'] = Variable<String>(bonusHistory);
+    }
     map['is_active'] = Variable<bool>(isActive);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -1695,6 +1729,9 @@ class Site extends DataClass implements Insertable<Site> {
       name: Value(name),
       code: Value(code),
       dailyBonus: Value(dailyBonus),
+      bonusHistory: bonusHistory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bonusHistory),
       isActive: Value(isActive),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -1715,6 +1752,7 @@ class Site extends DataClass implements Insertable<Site> {
       name: serializer.fromJson<String>(json['name']),
       code: serializer.fromJson<String>(json['code']),
       dailyBonus: serializer.fromJson<double>(json['dailyBonus']),
+      bonusHistory: serializer.fromJson<String?>(json['bonusHistory']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1732,6 +1770,7 @@ class Site extends DataClass implements Insertable<Site> {
       'name': serializer.toJson<String>(name),
       'code': serializer.toJson<String>(code),
       'dailyBonus': serializer.toJson<double>(dailyBonus),
+      'bonusHistory': serializer.toJson<String?>(bonusHistory),
       'isActive': serializer.toJson<bool>(isActive),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1747,6 +1786,7 @@ class Site extends DataClass implements Insertable<Site> {
     String? name,
     String? code,
     double? dailyBonus,
+    Value<String?> bonusHistory = const Value.absent(),
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1759,6 +1799,7 @@ class Site extends DataClass implements Insertable<Site> {
     name: name ?? this.name,
     code: code ?? this.code,
     dailyBonus: dailyBonus ?? this.dailyBonus,
+    bonusHistory: bonusHistory.present ? bonusHistory.value : this.bonusHistory,
     isActive: isActive ?? this.isActive,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1779,6 +1820,9 @@ class Site extends DataClass implements Insertable<Site> {
       dailyBonus: data.dailyBonus.present
           ? data.dailyBonus.value
           : this.dailyBonus,
+      bonusHistory: data.bonusHistory.present
+          ? data.bonusHistory.value
+          : this.bonusHistory,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1796,6 +1840,7 @@ class Site extends DataClass implements Insertable<Site> {
           ..write('name: $name, ')
           ..write('code: $code, ')
           ..write('dailyBonus: $dailyBonus, ')
+          ..write('bonusHistory: $bonusHistory, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1813,6 +1858,7 @@ class Site extends DataClass implements Insertable<Site> {
     name,
     code,
     dailyBonus,
+    bonusHistory,
     isActive,
     createdAt,
     updatedAt,
@@ -1829,6 +1875,7 @@ class Site extends DataClass implements Insertable<Site> {
           other.name == this.name &&
           other.code == this.code &&
           other.dailyBonus == this.dailyBonus &&
+          other.bonusHistory == this.bonusHistory &&
           other.isActive == this.isActive &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1843,6 +1890,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
   final Value<String> name;
   final Value<String> code;
   final Value<double> dailyBonus;
+  final Value<String?> bonusHistory;
   final Value<bool> isActive;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1856,6 +1904,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
     this.name = const Value.absent(),
     this.code = const Value.absent(),
     this.dailyBonus = const Value.absent(),
+    this.bonusHistory = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1870,6 +1919,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
     required String name,
     required String code,
     this.dailyBonus = const Value.absent(),
+    this.bonusHistory = const Value.absent(),
     this.isActive = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1886,6 +1936,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
     Expression<String>? name,
     Expression<String>? code,
     Expression<double>? dailyBonus,
+    Expression<String>? bonusHistory,
     Expression<bool>? isActive,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1900,6 +1951,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
       if (name != null) 'name': name,
       if (code != null) 'code': code,
       if (dailyBonus != null) 'daily_bonus': dailyBonus,
+      if (bonusHistory != null) 'bonus_history': bonusHistory,
       if (isActive != null) 'is_active': isActive,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1916,6 +1968,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
     Value<String>? name,
     Value<String>? code,
     Value<double>? dailyBonus,
+    Value<String?>? bonusHistory,
     Value<bool>? isActive,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1930,6 +1983,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
       name: name ?? this.name,
       code: code ?? this.code,
       dailyBonus: dailyBonus ?? this.dailyBonus,
+      bonusHistory: bonusHistory ?? this.bonusHistory,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1964,6 +2018,9 @@ class SitesCompanion extends UpdateCompanion<Site> {
     if (dailyBonus.present) {
       map['daily_bonus'] = Variable<double>(dailyBonus.value);
     }
+    if (bonusHistory.present) {
+      map['bonus_history'] = Variable<String>(bonusHistory.value);
+    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -1990,6 +2047,7 @@ class SitesCompanion extends UpdateCompanion<Site> {
           ..write('name: $name, ')
           ..write('code: $code, ')
           ..write('dailyBonus: $dailyBonus, ')
+          ..write('bonusHistory: $bonusHistory, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -9503,6 +9561,7 @@ typedef $$SitesTableCreateCompanionBuilder =
       required String name,
       required String code,
       Value<double> dailyBonus,
+      Value<String?> bonusHistory,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -9518,6 +9577,7 @@ typedef $$SitesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> code,
       Value<double> dailyBonus,
+      Value<String?> bonusHistory,
       Value<bool> isActive,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -9569,6 +9629,11 @@ class $$SitesTableFilterComposer extends Composer<_$AppDatabase, $SitesTable> {
 
   ColumnFilters<double> get dailyBonus => $composableBuilder(
     column: $table.dailyBonus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bonusHistory => $composableBuilder(
+    column: $table.bonusHistory,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9637,6 +9702,11 @@ class $$SitesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bonusHistory => $composableBuilder(
+    column: $table.bonusHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
     builder: (column) => ColumnOrderings(column),
@@ -9692,6 +9762,11 @@ class $$SitesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get bonusHistory => $composableBuilder(
+    column: $table.bonusHistory,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
@@ -9738,6 +9813,7 @@ class $$SitesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> code = const Value.absent(),
                 Value<double> dailyBonus = const Value.absent(),
+                Value<String?> bonusHistory = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -9751,6 +9827,7 @@ class $$SitesTableTableManager
                 name: name,
                 code: code,
                 dailyBonus: dailyBonus,
+                bonusHistory: bonusHistory,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -9766,6 +9843,7 @@ class $$SitesTableTableManager
                 required String name,
                 required String code,
                 Value<double> dailyBonus = const Value.absent(),
+                Value<String?> bonusHistory = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -9779,6 +9857,7 @@ class $$SitesTableTableManager
                 name: name,
                 code: code,
                 dailyBonus: dailyBonus,
+                bonusHistory: bonusHistory,
                 isActive: isActive,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../shared/bonus_history.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
@@ -53,9 +54,14 @@ class SiteRepository {
     });
   }
 
+  /// [effectiveFrom]: prim değiştiyse yeni primin hangi günden itibaren geçerli
+  /// olacağı (varsayılan: bugün). O günden önceki günler eski primle
+  /// hesaplanmaya devam eder — geçmiş yeniden fiyatlanmaz (tarih bazlı prim;
+  /// bkz. BonusHistory, yevmiyedeki wageHistory ile aynı mantık).
   Future<void> updateSiteBonus({
     required String siteId,
     required double dailyBonus,
+    DateTime? effectiveFrom,
   }) async {
     await _db.transaction(() async {
       final existing = await (_db.select(_db.sites)
@@ -63,9 +69,24 @@ class SiteRepository {
           .getSingleOrNull();
       final nextVersion = (existing?.syncVersion ?? 0) + 1;
 
+      // Prim değiştiyse: değişiklikten önceki günler eski primde kalsın diye
+      // geçmişe yeni bir segment ekle (ilk değişiklikte eski prim taban olarak
+      // tohumlanır). Geçmişi olduğu gibi taşı; prim değişmediyse dokunma.
+      var bonusHistoryJson = existing?.bonusHistory;
+      if (existing != null && existing.dailyBonus != dailyBonus) {
+        bonusHistoryJson = BonusHistory.decode(existing.bonusHistory)
+            .withChange(
+              effectiveFrom: effectiveFrom ?? DateTime.now(),
+              newBonus: dailyBonus,
+              previousBonus: existing.dailyBonus,
+            )
+            .encode();
+      }
+
       await (_db.update(_db.sites)..where((s) => s.id.equals(siteId))).write(
         SitesCompanion(
           dailyBonus: Value(dailyBonus),
+          bonusHistory: Value(bonusHistoryJson),
           updatedAt: Value(DateTime.now()),
           lastModifiedBy: Value(_ctx.userId),
           deviceId: Value(_ctx.deviceId),

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../shared/attendance_status.dart';
+import '../../../shared/bonus_history.dart';
 import '../../../shared/month_utils.dart';
 import '../../../shared/payroll_calculator.dart';
 import '../../sync/sync_context.dart';
@@ -194,13 +195,19 @@ class AttendanceRepository {
           ..where((s) => s.id.isIn(siteIds)))
         .get();
 
-    final bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
+    // Tarih bazlı prim: her gün, o gün geçerli olan primle fiyatlanır.
+    // Geçmiş boşsa (hiç değişiklik yok) tüm günler güncel primi alır — eski
+    // davranış. Prim değişikliği yalnızca ileriye dönük etki eder.
+    final siteById = {for (final s in sites) s.id: s};
 
     double total = 0;
     for (final entry in entries) {
       final status = AttendanceStatusX.fromCode(entry.status);
       if (!status.requiresSite || entry.siteId == null) continue;
-      final bonus = bonusBySiteId[entry.siteId] ?? 0;
+      final site = siteById[entry.siteId];
+      if (site == null) continue;
+      final bonus = BonusHistory.decode(site.bonusHistory)
+          .bonusForDate(entry.workDate, site.dailyBonus);
       if (bonus <= 0) continue;
       final equivalent = status == AttendanceStatus.halfDay ? 0.5 : 1.0;
       total += bonus * equivalent;
@@ -321,13 +328,18 @@ class AttendanceRepository {
           ..where((s) => s.id.isIn(siteIds)))
         .get();
 
-    final bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
+    // Tarih bazlı prim: her gün, o gün geçerli olan primle fiyatlanır (bkz.
+    // rangeLocationBonus). Prim değişikliği yalnızca ileriye dönük etki eder.
+    final siteById = {for (final s in sites) s.id: s};
 
     double total = 0;
     for (final entry in entries) {
       final status = AttendanceStatusX.fromCode(entry.status);
       if (!status.requiresSite || entry.siteId == null) continue;
-      final bonus = bonusBySiteId[entry.siteId] ?? 0;
+      final site = siteById[entry.siteId];
+      if (site == null) continue;
+      final bonus = BonusHistory.decode(site.bonusHistory)
+          .bonusForDate(entry.workDate, site.dailyBonus);
       if (bonus <= 0) continue;
       final equivalent = status == AttendanceStatus.halfDay ? 0.5 : 1.0;
       total += bonus * equivalent;

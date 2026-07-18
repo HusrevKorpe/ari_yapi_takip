@@ -26,6 +26,7 @@ extension SiteSyncExt on Site {
     'ad': name,
     'kod': code,
     'gunlukPrim': dailyBonus,
+    'primGecmisi': bonusHistory,
     'aktifMi': isActive,
     'olusturulmaTarihi': createdAt.toIso8601String(),
     'guncellenmeTarihi': updatedAt.toIso8601String(),

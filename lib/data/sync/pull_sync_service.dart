@@ -347,6 +347,9 @@ class PullSyncService {
             dailyBonus: Value(
               _double(_value(data, 'gunlukPrim', 'dailyBonus')),
             ),
+            bonusHistory: Value(
+              _nullableStr(_value(data, 'primGecmisi', 'bonusHistory')),
+            ),
             isActive: Value(
               _bool(_value(data, 'aktifMi', 'isActive'), fallback: true),
             ),

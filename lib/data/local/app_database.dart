@@ -62,6 +62,11 @@ class Sites extends Table with SyncMeta {
   TextColumn get name => text()();
   TextColumn get code => text()();
   RealColumn get dailyBonus => real().withDefault(const Constant(0.0))();
+
+  /// Tarih bazlı prim geçmişi (JSON). Null/boş = hiç prim değişikliği yok,
+  /// tüm günler güncel [dailyBonus] ile fiyatlanır (eski davranış).
+  /// Bkz. BonusHistory. Yevmiyedeki wageHistory ile aynı mantık.
+  TextColumn get bonusHistory => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -258,7 +263,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration {
@@ -368,6 +373,9 @@ class AppDatabase extends _$AppDatabase {
         });
         await _runStep('v15: workers.wage_history', from < 15, () async {
           await _safeAddColumn(m, workers, workers.wageHistory);
+        });
+        await _runStep('v16: sites.bonus_history', from < 16, () async {
+          await _safeAddColumn(m, sites, sites.bonusHistory);
         });
       },
     );

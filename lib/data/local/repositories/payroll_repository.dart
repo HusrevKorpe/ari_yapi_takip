@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../shared/attendance_status.dart';
+import '../../../shared/bonus_history.dart';
 import '../../../shared/month_utils.dart';
 import '../../../shared/payroll_calculator.dart';
 import '../../../shared/wage_history.dart';
@@ -91,14 +92,17 @@ class PayrollRepository {
         if (e.secondSiteId != null) e.secondSiteId!,
       ],
     }.toList();
-    final Map<String, double> bonusBySiteId;
+    // Tarih bazlı prim: her günü, o gün geçerli olan primle fiyatlayabilmek
+    // için şantiyeleri (prim geçmişiyle) tutuyoruz. Geçmiş boşsa güncel prim
+    // kullanılır — prim değişikliği yalnızca ileriye dönük etki eder.
+    final Map<String, Site> siteById;
     if (worker.receivesBonus && siteIds.isNotEmpty) {
       final sites = await (_db.select(_db.sites)
             ..where((s) => s.id.isIn(siteIds)))
           .get();
-      bonusBySiteId = {for (final s in sites) s.id: s.dailyBonus};
+      siteById = {for (final s in sites) s.id: s};
     } else {
-      bonusBySiteId = {};
+      siteById = {};
     }
 
     // Tarih bazlı yevmiye: her gün, o gün geçerli olan yevmiyeyle fiyatlanır.
@@ -113,9 +117,13 @@ class PayrollRepository {
       if (worker.receivesBonus &&
           p.status.requiresSite &&
           p.entry.siteId != null) {
-        final bonus = bonusBySiteId[p.entry.siteId] ?? 0;
-        if (bonus > 0) {
-          dayBonus = bonus * dayEquivalent;
+        final site = siteById[p.entry.siteId];
+        if (site != null) {
+          final bonus = BonusHistory.decode(site.bonusHistory)
+              .bonusForDate(p.entry.workDate, site.dailyBonus);
+          if (bonus > 0) {
+            dayBonus = bonus * dayEquivalent;
+          }
         }
       }
 
