@@ -125,7 +125,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
     try {
       // Sheet açıldığında hesaplanan `stale` net bayat olabilir: bu sırada
-      // başka sekmeden avans/borç eklenmiş ya da başka cihazdan sync gelmiş
+      // başka sekmeden avans eklenmiş ya da başka cihazdan sync gelmiş
       // olabilir. Ödeme anında güncel durumu yeniden hesaplayıp doğruluyoruz;
       // (skipLoadingOnRefresh=true olduğundan bu refresh sheet'i unmount etmez).
       final fresh = await ref.refresh(
@@ -176,8 +176,9 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
         if (!confirmed) return;
       }
 
-      // Her zaman güncel (fresh) sonucu yaz — asla bayat değeri değil.
-      await ref.read(payrollRepositoryProvider).saveSnapshot(fresh);
+      // Her zaman güncel (fresh) sonucu yaz — asla bayat değeri değil. Günlük
+      // döküm dondurma (freeze) ödeme kaydıyla AYNI transaction'da yapılır;
+      // ayrı saveSnapshot çağrısı YOK (reddedilen bir kayıt snapshot'ı bozmasın).
       await ref.read(paymentRepositoryProvider).recordPayment(
             workerId: fresh.worker.id,
             periodStart: fresh.periodStart,
@@ -188,6 +189,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                 ? 'Maaş ödemesi fazlası '
                     '(${formatDate(fresh.periodStart)} – ${formatDate(fresh.periodEnd)} dönemi)'
                 : null,
+            freeze: fresh,
           );
       ref.invalidate(lastPaymentEndProvider(fresh.worker.id));
       ref.invalidate(workerPayrollProvider(widget.worker));

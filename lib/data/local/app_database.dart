@@ -41,6 +41,9 @@ class Workers extends Table with SyncMeta {
   TextColumn get id => text()();
   TextColumn get fullName => text()();
   RealColumn get dailyWage => real()();
+  /// Tarih bazlı yevmiye geçmişi (JSON). null = hiç zam kaydı yok; tüm günler
+  /// güncel [dailyWage] ile fiyatlanır (eski davranış). Bkz. WageHistory.
+  TextColumn get wageHistory => text().nullable()();
   TextColumn get defaultSiteId => text().nullable()();
   TextColumn get payFrequency => text().withDefault(const Constant('weekly'))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
@@ -255,7 +258,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration {
@@ -362,6 +365,9 @@ class AppDatabase extends _$AppDatabase {
           } catch (e) {
             if (!e.toString().contains('already exists')) rethrow;
           }
+        });
+        await _runStep('v15: workers.wage_history', from < 15, () async {
+          await _safeAddColumn(m, workers, workers.wageHistory);
         });
       },
     );

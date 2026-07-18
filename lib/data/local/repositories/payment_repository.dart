@@ -5,6 +5,8 @@ import '../../../shared/month_utils.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
+import 'dtos.dart';
+import 'payroll_repository.dart';
 
 /// Aynı işçi + dönem için zaten aktif bir ödeme varken yeniden kaydetme
 /// denenirse fırlatılır. UI bu hatayı yakalayıp kullanıcıya friendly mesaj
@@ -49,11 +51,15 @@ class NotLatestPaymentException implements Exception {
 }
 
 class PaymentRepository {
-  PaymentRepository(this._db, this._uuid, this._ctx);
+  /// [_payrollRepository] üretimde enjekte edilir; her ödeme, dönemin günlük
+  /// dökümünü ödeme kaydıyla AYNI transaction içinde dondurmak için kullanılır.
+  /// Testlerde snapshot'la ilgilenmeyen senaryolar bunu vermeyebilir (null).
+  PaymentRepository(this._db, this._uuid, this._ctx, [this._payrollRepository]);
 
   final AppDatabase _db;
   final Uuid _uuid;
   final SyncContext _ctx;
+  final PayrollRepository? _payrollRepository;
 
   /// [amount] dönemin maaş olarak kapatılan kısmıdır. Kullanıcı hak edişten
   /// fazla öderse fazlalık [excessAdvance] olarak verilir ve aynı transaction
@@ -68,7 +74,23 @@ class PaymentRepository {
     required double amount,
     double excessAdvance = 0,
     String? excessAdvanceNote,
+    PayrollResult? freeze,
   }) async {
+    // Üretimde (PayrollRepository enjekte edilmiş) her ödeme, dönemin günlük
+    // dökümünü aynı transaction içinde DONDURMAK zorunda: dökümsüz ödeme,
+    // detayda "ödeme anındaki gün sayısı ≠ liste" tutarsızlığına yol açar.
+    // Wiring varken freeze atlanırsa sessizce geçmeyip gürültülü hata veriyoruz.
+    if (_payrollRepository != null && freeze == null) {
+      throw StateError(
+        'Ödeme dökümü dondurulmadan kaydedilemez (freeze verilmedi).',
+      );
+    }
+    if (freeze != null && _payrollRepository == null) {
+      throw StateError(
+        'freeze verildi ama PayrollRepository enjekte edilmemiş.',
+      );
+    }
+
     final id = _uuid.v4();
     final now = DateTime.now();
 
@@ -95,6 +117,13 @@ class PaymentRepository {
           periodEnd: periodEnd,
           existingId: existing.id,
         );
+      }
+
+      // Donmuş dökümü ödemeyle AYNI transaction'da yaz. Duplicate kontrolü
+      // yukarıda döndüğü için reddedilen bir çift ödeme mevcut snapshot'ı
+      // ASLA bozamaz; ödeme yazılamazsa döküm de (savepoint ile) geri alınır.
+      if (freeze != null) {
+        await _payrollRepository!.writeSnapshot(freeze);
       }
 
       await _db.into(_db.payrollPayments).insert(

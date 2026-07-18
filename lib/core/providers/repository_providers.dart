@@ -85,6 +85,8 @@ final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
     ref.watch(databaseProvider),
     ref.watch(uuidProvider),
     ref.watch(syncContextProvider),
+    // Ödeme kaydıyla günlük dökümü aynı transaction'da dondurmak için.
+    ref.watch(payrollRepositoryProvider),
   );
 });
 

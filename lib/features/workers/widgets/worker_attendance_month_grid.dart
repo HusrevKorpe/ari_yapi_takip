@@ -7,6 +7,7 @@ import '../../../data/local/app_database.dart';
 import '../../../shared/attendance_status.dart';
 import '../../../shared/formatters.dart';
 import '../../../shared/payroll_calculator.dart';
+import '../../../shared/wage_history.dart';
 import '../../attendance/widgets/grid_constants.dart';
 import '../../attendance/widgets/month_navigator.dart';
 
@@ -71,6 +72,7 @@ class _WorkerAttendanceMonthGridState
               daysInMonth: daysInMonth,
               entries: entries,
               dailyWage: widget.worker.dailyWage,
+              wageHistoryJson: widget.worker.wageHistory,
               siteCodes: siteCodes,
             );
           },
@@ -86,6 +88,7 @@ class _MonthTable extends StatelessWidget {
     required this.daysInMonth,
     required this.entries,
     required this.dailyWage,
+    required this.wageHistoryJson,
     required this.siteCodes,
   });
 
@@ -93,6 +96,7 @@ class _MonthTable extends StatelessWidget {
   final int daysInMonth;
   final List<AttendanceEntry> entries;
   final double dailyWage;
+  final String? wageHistoryJson;
   final Map<String, String> siteCodes;
 
   @override
@@ -106,7 +110,15 @@ class _MonthTable extends StatelessWidget {
     final workedEquiv = PayrollCalculator.workedEquivalent(
       entries.map((e) => AttendanceStatusX.fromCode(e.status)),
     );
-    final grossWage = workedEquiv * dailyWage;
+    // Tarih bazlı yevmiye: her gün kendi günündeki ücretle toplanır ki ay
+    // içinde zam olduysa kazanç doğru çıksın.
+    final wages = WageHistory.decode(wageHistoryJson);
+    final grossWage = entries.fold<double>(0, (sum, e) {
+      final eq = PayrollCalculator.workedEquivalent(
+        [AttendanceStatusX.fromCode(e.status)],
+      );
+      return sum + wages.wageForDate(e.workDate, dailyWage) * eq;
+    });
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),

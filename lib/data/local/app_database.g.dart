@@ -555,6 +555,17 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _wageHistoryMeta = const VerificationMeta(
+    'wageHistory',
+  );
+  @override
+  late final GeneratedColumn<String> wageHistory = GeneratedColumn<String>(
+    'wage_history',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _defaultSiteIdMeta = const VerificationMeta(
     'defaultSiteId',
   );
@@ -650,6 +661,7 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
     id,
     fullName,
     dailyWage,
+    wageHistory,
     defaultSiteId,
     payFrequency,
     isActive,
@@ -720,6 +732,15 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
       );
     } else if (isInserting) {
       context.missing(_dailyWageMeta);
+    }
+    if (data.containsKey('wage_history')) {
+      context.handle(
+        _wageHistoryMeta,
+        wageHistory.isAcceptableOrUnknown(
+          data['wage_history']!,
+          _wageHistoryMeta,
+        ),
+      );
     }
     if (data.containsKey('default_site_id')) {
       context.handle(
@@ -809,6 +830,10 @@ class $WorkersTable extends Workers with TableInfo<$WorkersTable, Worker> {
         DriftSqlType.double,
         data['${effectivePrefix}daily_wage'],
       )!,
+      wageHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wage_history'],
+      ),
       defaultSiteId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}default_site_id'],
@@ -854,6 +879,10 @@ class Worker extends DataClass implements Insertable<Worker> {
   final String id;
   final String fullName;
   final double dailyWage;
+
+  /// Tarih bazlı yevmiye geçmişi (JSON). null = hiç zam kaydı yok; tüm günler
+  /// güncel [dailyWage] ile fiyatlanır (eski davranış). Bkz. WageHistory.
+  final String? wageHistory;
   final String? defaultSiteId;
   final String payFrequency;
   final bool isActive;
@@ -869,6 +898,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     required this.id,
     required this.fullName,
     required this.dailyWage,
+    this.wageHistory,
     this.defaultSiteId,
     required this.payFrequency,
     required this.isActive,
@@ -889,6 +919,9 @@ class Worker extends DataClass implements Insertable<Worker> {
     map['id'] = Variable<String>(id);
     map['full_name'] = Variable<String>(fullName);
     map['daily_wage'] = Variable<double>(dailyWage);
+    if (!nullToAbsent || wageHistory != null) {
+      map['wage_history'] = Variable<String>(wageHistory);
+    }
     if (!nullToAbsent || defaultSiteId != null) {
       map['default_site_id'] = Variable<String>(defaultSiteId);
     }
@@ -914,6 +947,9 @@ class Worker extends DataClass implements Insertable<Worker> {
       id: Value(id),
       fullName: Value(fullName),
       dailyWage: Value(dailyWage),
+      wageHistory: wageHistory == null && nullToAbsent
+          ? const Value.absent()
+          : Value(wageHistory),
       defaultSiteId: defaultSiteId == null && nullToAbsent
           ? const Value.absent()
           : Value(defaultSiteId),
@@ -941,6 +977,7 @@ class Worker extends DataClass implements Insertable<Worker> {
       id: serializer.fromJson<String>(json['id']),
       fullName: serializer.fromJson<String>(json['fullName']),
       dailyWage: serializer.fromJson<double>(json['dailyWage']),
+      wageHistory: serializer.fromJson<String?>(json['wageHistory']),
       defaultSiteId: serializer.fromJson<String?>(json['defaultSiteId']),
       payFrequency: serializer.fromJson<String>(json['payFrequency']),
       isActive: serializer.fromJson<bool>(json['isActive']),
@@ -961,6 +998,7 @@ class Worker extends DataClass implements Insertable<Worker> {
       'id': serializer.toJson<String>(id),
       'fullName': serializer.toJson<String>(fullName),
       'dailyWage': serializer.toJson<double>(dailyWage),
+      'wageHistory': serializer.toJson<String?>(wageHistory),
       'defaultSiteId': serializer.toJson<String?>(defaultSiteId),
       'payFrequency': serializer.toJson<String>(payFrequency),
       'isActive': serializer.toJson<bool>(isActive),
@@ -979,6 +1017,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     String? id,
     String? fullName,
     double? dailyWage,
+    Value<String?> wageHistory = const Value.absent(),
     Value<String?> defaultSiteId = const Value.absent(),
     String? payFrequency,
     bool? isActive,
@@ -994,6 +1033,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     id: id ?? this.id,
     fullName: fullName ?? this.fullName,
     dailyWage: dailyWage ?? this.dailyWage,
+    wageHistory: wageHistory.present ? wageHistory.value : this.wageHistory,
     defaultSiteId: defaultSiteId.present
         ? defaultSiteId.value
         : this.defaultSiteId,
@@ -1017,6 +1057,9 @@ class Worker extends DataClass implements Insertable<Worker> {
       id: data.id.present ? data.id.value : this.id,
       fullName: data.fullName.present ? data.fullName.value : this.fullName,
       dailyWage: data.dailyWage.present ? data.dailyWage.value : this.dailyWage,
+      wageHistory: data.wageHistory.present
+          ? data.wageHistory.value
+          : this.wageHistory,
       defaultSiteId: data.defaultSiteId.present
           ? data.defaultSiteId.value
           : this.defaultSiteId,
@@ -1043,6 +1086,7 @@ class Worker extends DataClass implements Insertable<Worker> {
           ..write('id: $id, ')
           ..write('fullName: $fullName, ')
           ..write('dailyWage: $dailyWage, ')
+          ..write('wageHistory: $wageHistory, ')
           ..write('defaultSiteId: $defaultSiteId, ')
           ..write('payFrequency: $payFrequency, ')
           ..write('isActive: $isActive, ')
@@ -1063,6 +1107,7 @@ class Worker extends DataClass implements Insertable<Worker> {
     id,
     fullName,
     dailyWage,
+    wageHistory,
     defaultSiteId,
     payFrequency,
     isActive,
@@ -1082,6 +1127,7 @@ class Worker extends DataClass implements Insertable<Worker> {
           other.id == this.id &&
           other.fullName == this.fullName &&
           other.dailyWage == this.dailyWage &&
+          other.wageHistory == this.wageHistory &&
           other.defaultSiteId == this.defaultSiteId &&
           other.payFrequency == this.payFrequency &&
           other.isActive == this.isActive &&
@@ -1099,6 +1145,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
   final Value<String> id;
   final Value<String> fullName;
   final Value<double> dailyWage;
+  final Value<String?> wageHistory;
   final Value<String?> defaultSiteId;
   final Value<String> payFrequency;
   final Value<bool> isActive;
@@ -1115,6 +1162,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     this.id = const Value.absent(),
     this.fullName = const Value.absent(),
     this.dailyWage = const Value.absent(),
+    this.wageHistory = const Value.absent(),
     this.defaultSiteId = const Value.absent(),
     this.payFrequency = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -1132,6 +1180,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     required String id,
     required String fullName,
     required double dailyWage,
+    this.wageHistory = const Value.absent(),
     this.defaultSiteId = const Value.absent(),
     this.payFrequency = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -1151,6 +1200,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     Expression<String>? id,
     Expression<String>? fullName,
     Expression<double>? dailyWage,
+    Expression<String>? wageHistory,
     Expression<String>? defaultSiteId,
     Expression<String>? payFrequency,
     Expression<bool>? isActive,
@@ -1168,6 +1218,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
       if (id != null) 'id': id,
       if (fullName != null) 'full_name': fullName,
       if (dailyWage != null) 'daily_wage': dailyWage,
+      if (wageHistory != null) 'wage_history': wageHistory,
       if (defaultSiteId != null) 'default_site_id': defaultSiteId,
       if (payFrequency != null) 'pay_frequency': payFrequency,
       if (isActive != null) 'is_active': isActive,
@@ -1187,6 +1238,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     Value<String>? id,
     Value<String>? fullName,
     Value<double>? dailyWage,
+    Value<String?>? wageHistory,
     Value<String?>? defaultSiteId,
     Value<String>? payFrequency,
     Value<bool>? isActive,
@@ -1204,6 +1256,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
       id: id ?? this.id,
       fullName: fullName ?? this.fullName,
       dailyWage: dailyWage ?? this.dailyWage,
+      wageHistory: wageHistory ?? this.wageHistory,
       defaultSiteId: defaultSiteId ?? this.defaultSiteId,
       payFrequency: payFrequency ?? this.payFrequency,
       isActive: isActive ?? this.isActive,
@@ -1238,6 +1291,9 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
     }
     if (dailyWage.present) {
       map['daily_wage'] = Variable<double>(dailyWage.value);
+    }
+    if (wageHistory.present) {
+      map['wage_history'] = Variable<String>(wageHistory.value);
     }
     if (defaultSiteId.present) {
       map['default_site_id'] = Variable<String>(defaultSiteId.value);
@@ -1276,6 +1332,7 @@ class WorkersCompanion extends UpdateCompanion<Worker> {
           ..write('id: $id, ')
           ..write('fullName: $fullName, ')
           ..write('dailyWage: $dailyWage, ')
+          ..write('wageHistory: $wageHistory, ')
           ..write('defaultSiteId: $defaultSiteId, ')
           ..write('payFrequency: $payFrequency, ')
           ..write('isActive: $isActive, ')
@@ -9049,6 +9106,7 @@ typedef $$WorkersTableCreateCompanionBuilder =
       required String id,
       required String fullName,
       required double dailyWage,
+      Value<String?> wageHistory,
       Value<String?> defaultSiteId,
       Value<String> payFrequency,
       Value<bool> isActive,
@@ -9067,6 +9125,7 @@ typedef $$WorkersTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> fullName,
       Value<double> dailyWage,
+      Value<String?> wageHistory,
       Value<String?> defaultSiteId,
       Value<String> payFrequency,
       Value<bool> isActive,
@@ -9118,6 +9177,11 @@ class $$WorkersTableFilterComposer
 
   ColumnFilters<double> get dailyWage => $composableBuilder(
     column: $table.dailyWage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get wageHistory => $composableBuilder(
+    column: $table.wageHistory,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9201,6 +9265,11 @@ class $$WorkersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get wageHistory => $composableBuilder(
+    column: $table.wageHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get defaultSiteId => $composableBuilder(
     column: $table.defaultSiteId,
     builder: (column) => ColumnOrderings(column),
@@ -9271,6 +9340,11 @@ class $$WorkersTableAnnotationComposer
   GeneratedColumn<double> get dailyWage =>
       $composableBuilder(column: $table.dailyWage, builder: (column) => column);
 
+  GeneratedColumn<String> get wageHistory => $composableBuilder(
+    column: $table.wageHistory,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get defaultSiteId => $composableBuilder(
     column: $table.defaultSiteId,
     builder: (column) => column,
@@ -9334,6 +9408,7 @@ class $$WorkersTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> fullName = const Value.absent(),
                 Value<double> dailyWage = const Value.absent(),
+                Value<String?> wageHistory = const Value.absent(),
                 Value<String?> defaultSiteId = const Value.absent(),
                 Value<String> payFrequency = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -9350,6 +9425,7 @@ class $$WorkersTableTableManager
                 id: id,
                 fullName: fullName,
                 dailyWage: dailyWage,
+                wageHistory: wageHistory,
                 defaultSiteId: defaultSiteId,
                 payFrequency: payFrequency,
                 isActive: isActive,
@@ -9368,6 +9444,7 @@ class $$WorkersTableTableManager
                 required String id,
                 required String fullName,
                 required double dailyWage,
+                Value<String?> wageHistory = const Value.absent(),
                 Value<String?> defaultSiteId = const Value.absent(),
                 Value<String> payFrequency = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -9384,6 +9461,7 @@ class $$WorkersTableTableManager
                 id: id,
                 fullName: fullName,
                 dailyWage: dailyWage,
+                wageHistory: wageHistory,
                 defaultSiteId: defaultSiteId,
                 payFrequency: payFrequency,
                 isActive: isActive,

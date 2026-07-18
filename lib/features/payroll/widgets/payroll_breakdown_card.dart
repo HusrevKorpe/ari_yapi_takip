@@ -37,9 +37,9 @@ class PayrollBreakdownCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 PayrollSummaryRow(
                   label: 'Yevmiye Toplam',
-                  value: formatMoney(
-                    result.workedDayEquivalent * result.worker.dailyWage,
-                  ),
+                  // Tarih bazlı yevmiyede günler farklı ücretlerde olabileceğinden
+                  // güncel yevmiye × gün yerine hesaplanmış gerçek tutarı göster.
+                  value: formatMoney(result.gross - result.locationBonus),
                 ),
                 if (result.locationBonus > 0) ...[
                   const SizedBox(height: 10),
@@ -52,24 +52,14 @@ class PayrollBreakdownCard extends StatelessWidget {
                 if (result.deductions > 0) ...[
                   const SizedBox(height: 10),
                   PayrollSummaryRow(
-                    label: 'Kesinti (Avans+Borç)',
+                    label: 'Avans Kesintisi',
                     value: '-${formatMoney(result.deductions)}',
                     valueColor: const Color(0xFFB60A0A),
                   ),
-                ] else if (result.deductions < 0) ...[
-                  // Borç (işveren çalışana borçlu) avansı aştığında deductions
-                  // negatif olur ve net brütten büyük çıkar. Bu artışı gizlemeyip
-                  // ayrı bir "Alacak" satırı olarak gösteriyoruz.
-                  const SizedBox(height: 10),
-                  PayrollSummaryRow(
-                    label: 'Alacak (Avans+Borç)',
-                    value: '+${formatMoney(-result.deductions)}',
-                    valueColor: const Color(0xFF1A6B5A),
-                  ),
                 ],
                 if (result.carryOver > 0) ...[
-                  // Ödenmiş bir döneme sonradan girilen puantaj/borç kaydı:
-                  // önceki dönemde ödenmeden kalan hakediş buraya devreder.
+                  // Ödenmiş bir döneme sonradan girilen puantaj kaydı: önceki
+                  // dönemde ödenmeden kalan hakediş buraya devreder.
                   const SizedBox(height: 10),
                   PayrollSummaryRow(
                     label: 'Önceki Dönemden Devreden',

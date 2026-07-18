@@ -60,7 +60,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
               tabs: const [
                 Tab(text: 'Özet'),
                 Tab(text: 'Hesap'),
-                Tab(text: 'Avans/Borç'),
+                Tab(text: 'Avans'),
                 Tab(text: 'Yevmiye'),
               ],
             ),
@@ -72,7 +72,7 @@ class _WorkerDetailPageState extends ConsumerState<WorkerDetailPage>
         children: [
           _SummaryTab(worker: widget.worker),
           _SalaryTab(worker: widget.worker),
-          _AdvanceDebtTab(worker: widget.worker),
+          _AdvanceTab(worker: widget.worker),
           _AttendanceTab(worker: widget.worker),
         ],
       ),
@@ -167,9 +167,9 @@ class _PayrollSummaryCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 PayrollSummaryRow(
                   label: 'Yevmiye Toplam',
-                  value: formatMoney(
-                    result.workedDayEquivalent * result.worker.dailyWage,
-                  ),
+                  // Tarih bazlı yevmiyede günler farklı ücretlerde olabilir;
+                  // güncel yevmiye × gün yerine hesaplanmış gerçek tutar.
+                  value: formatMoney(result.gross - result.locationBonus),
                 ),
                 if (result.locationBonus > 0) ...[
                   const SizedBox(height: AppSpacing.sm),
@@ -182,18 +182,9 @@ class _PayrollSummaryCard extends StatelessWidget {
                 if (result.deductions > 0) ...[
                   const SizedBox(height: AppSpacing.sm),
                   PayrollSummaryRow(
-                    label: 'Kesinti (Avans+Borç)',
+                    label: 'Avans Kesintisi',
                     value: '-${formatMoney(result.deductions)}',
                     valueColor: AppColors.danger,
-                  ),
-                ] else if (result.deductions < 0) ...[
-                  // Borç avansı aştığında net brütten büyük olur; bu artışı
-                  // gizlemeyip ayrı bir "Alacak" satırı olarak gösteriyoruz.
-                  const SizedBox(height: AppSpacing.sm),
-                  PayrollSummaryRow(
-                    label: 'Alacak (Avans+Borç)',
-                    value: '+${formatMoney(-result.deductions)}',
-                    valueColor: AppColors.success,
                   ),
                 ],
               ],
@@ -290,30 +281,30 @@ class _SalaryTab extends ConsumerWidget {
   }
 }
 
-class _AdvanceDebtTab extends ConsumerWidget {
-  const _AdvanceDebtTab({required this.worker});
+class _AdvanceTab extends ConsumerWidget {
+  const _AdvanceTab({required this.worker});
 
   final Worker worker;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final debtsAsync = ref.watch(workerAdvanceDebtsProvider(worker.id));
+    final advancesAsync = ref.watch(workerAdvanceDebtsProvider(worker.id));
 
     return Column(
       children: [
         Expanded(
-          child: debtsAsync.when(
+          child: advancesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(
               child: _ErrorBox(message: 'Liste yüklenemedi: $e'),
             ),
-            data: (debts) {
-              if (debts.isEmpty) {
+            data: (advances) {
+              if (advances.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.xl),
                     child: Text(
-                      'Henüz avans veya borç kaydı yok.',
+                      'Henüz avans kaydı yok.',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textTertiary,
@@ -324,7 +315,7 @@ class _AdvanceDebtTab extends ConsumerWidget {
                 );
               }
 
-              final sorted = [...debts]
+              final sorted = [...advances]
                 ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
 
               return ListView.builder(
@@ -336,23 +327,22 @@ class _AdvanceDebtTab extends ConsumerWidget {
                 ),
                 itemCount: sorted.length,
                 itemBuilder: (context, i) {
-                  final debt = sorted[i];
-                  return _DebtRow(
-                    debt: debt,
-                    onEdit: () => _showAdvanceDebtDialog(
+                  final advance = sorted[i];
+                  return _AdvanceRow(
+                    advance: advance,
+                    onEdit: () => _showAdvanceDialog(
                       context,
                       workerId: worker.id,
-                      type: debt.type,
-                      existing: debt,
+                      existing: advance,
                     ),
-                    onDelete: () => _confirmDelete(context, ref, debt),
+                    onDelete: () => _confirmDelete(context, ref, advance),
                   );
                 },
               );
             },
           ),
         ),
-        _AdvanceDebtActions(workerId: worker.id),
+        _AdvanceActions(workerId: worker.id),
       ],
     );
   }
@@ -360,15 +350,15 @@ class _AdvanceDebtTab extends ConsumerWidget {
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
-    AdvanceDebt debt,
+    AdvanceDebt advance,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Kaydı Sil'),
         content: Text(
-          '${debt.type == 'advance' ? 'Avans' : 'Borç'} kaydı silinecek '
-          '(${formatMoney(debt.amount)}). Emin misiniz?',
+          'Avans kaydı silinecek '
+          '(${formatMoney(advance.amount)}). Emin misiniz?',
         ),
         actions: [
           TextButton(
@@ -386,7 +376,7 @@ class _AdvanceDebtTab extends ConsumerWidget {
 
     if (confirmed != true) return;
     try {
-      await ref.read(advanceDebtRepositoryProvider).delete(id: debt.id);
+      await ref.read(advanceDebtRepositoryProvider).delete(id: advance.id);
       if (context.mounted) {
         showSuccessSnackBar(context, 'Kayıt silindi');
       }
@@ -398,22 +388,21 @@ class _AdvanceDebtTab extends ConsumerWidget {
   }
 }
 
-class _DebtRow extends StatelessWidget {
-  const _DebtRow({
-    required this.debt,
+class _AdvanceRow extends StatelessWidget {
+  const _AdvanceRow({
+    required this.advance,
     required this.onEdit,
     required this.onDelete,
   });
 
-  final AdvanceDebt debt;
+  final AdvanceDebt advance;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final isAdvance = debt.type == 'advance';
-    final tint = isAdvance ? AppColors.info : AppColors.danger;
-    final tintBg = isAdvance ? AppColors.infoLight : AppColors.dangerLight;
+    const tint = AppColors.info;
+    const tintBg = AppColors.infoLight;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -435,10 +424,8 @@ class _DebtRow extends StatelessWidget {
                 color: tintBg,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
-              child: Icon(
-                isAdvance
-                    ? Icons.arrow_downward_rounded
-                    : Icons.arrow_upward_rounded,
+              child: const Icon(
+                Icons.arrow_downward_rounded,
                 size: 16,
                 color: tint,
               ),
@@ -459,8 +446,8 @@ class _DebtRow extends StatelessWidget {
                           color: tintBg,
                           borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
-                        child: Text(
-                          isAdvance ? 'Avans' : 'Borç',
+                        child: const Text(
+                          'Avans',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -470,7 +457,7 @@ class _DebtRow extends StatelessWidget {
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
-                        formatDate(debt.eventDate),
+                        formatDate(advance.eventDate),
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textTertiary,
                           fontWeight: FontWeight.w500,
@@ -478,10 +465,10 @@ class _DebtRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (debt.note != null && debt.note!.isNotEmpty) ...[
+                  if (advance.note != null && advance.note!.isNotEmpty) ...[
                     const SizedBox(height: 3),
                     Text(
-                      debt.note!,
+                      advance.note!,
                       style: AppTextStyles.caption,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -491,8 +478,8 @@ class _DebtRow extends StatelessWidget {
               ),
             ),
             Text(
-              formatMoney(debt.amount),
-              style: TextStyle(
+              formatMoney(advance.amount),
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: tint,
@@ -529,7 +516,7 @@ class _DebtRow extends StatelessWidget {
   }
 }
 
-/// Maaş ödemesini avans/borç kartlarıyla aynı görsel dilde gösteren satır.
+/// Maaş ödemesini avans kartlarıyla aynı görsel dilde gösteren satır.
 /// Dokununca ödeme detayı (dönem dökümü + iptal) açılır; düzenleme/silme
 /// ikonları yok çünkü ödeme yalnızca detay sheet'indeki iptal akışıyla
 /// geri alınabilir.
@@ -636,8 +623,8 @@ class _SalaryPaymentRow extends StatelessWidget {
   }
 }
 
-class _AdvanceDebtActions extends StatelessWidget {
-  const _AdvanceDebtActions({required this.workerId});
+class _AdvanceActions extends StatelessWidget {
+  const _AdvanceActions({required this.workerId});
 
   final String workerId;
 
@@ -651,64 +638,36 @@ class _AdvanceDebtActions extends StatelessWidget {
           color: AppColors.background,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  foregroundColor: AppColors.info,
-                  side: const BorderSide(color: AppColors.info),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                ),
-                icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                label: const Text(
-                  'Avans Ekle',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                onPressed: () => _showAdvanceDebtDialog(
-                  context,
-                  workerId: workerId,
-                  type: 'advance',
-                ),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
+              foregroundColor: AppColors.info,
+              side: const BorderSide(color: AppColors.info),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  foregroundColor: AppColors.danger,
-                  side: const BorderSide(color: AppColors.danger),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                ),
-                icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
-                label: const Text(
-                  'Borç Ekle',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-                onPressed: () => _showAdvanceDebtDialog(
-                  context,
-                  workerId: workerId,
-                  type: 'debt',
-                ),
-              ),
+            icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+            label: const Text(
+              'Avans Ekle',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
-          ],
+            onPressed: () => _showAdvanceDialog(
+              context,
+              workerId: workerId,
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-Future<void> _showAdvanceDebtDialog(
+Future<void> _showAdvanceDialog(
   BuildContext context, {
   required String workerId,
-  required String type,
   AdvanceDebt? existing,
 }) async {
   final isEdit = existing != null;
@@ -723,9 +682,7 @@ Future<void> _showAdvanceDebtDialog(
   await showDialog<void>(
     context: context,
     builder: (dialogContext) {
-      final title = isEdit
-          ? (type == 'advance' ? 'Avansı Düzenle' : 'Borcu Düzenle')
-          : (type == 'advance' ? 'Avans Ekle' : 'Borç Ekle');
+      final title = isEdit ? 'Avansı Düzenle' : 'Avans Ekle';
       return StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(title),
@@ -841,7 +798,6 @@ Future<void> _showAdvanceDebtDialog(
                       dialogContext,
                       date: entryDay,
                       lastPaidEnd: lastPaidEnd,
-                      type: type,
                     );
                     if (!proceed) return;
                   }
@@ -852,7 +808,7 @@ Future<void> _showAdvanceDebtDialog(
                       await repo.update(
                         id: existing.id,
                         date: selectedDate,
-                        type: type,
+                        type: 'advance',
                         amount: amount,
                         note: note,
                       );
@@ -860,7 +816,7 @@ Future<void> _showAdvanceDebtDialog(
                       await repo.add(
                         workerId: workerId,
                         date: selectedDate,
-                        type: type,
+                        type: 'advance',
                         amount: amount,
                         note: note,
                       );
@@ -871,11 +827,7 @@ Future<void> _showAdvanceDebtDialog(
                     if (context.mounted) {
                       showSuccessSnackBar(
                         context,
-                        isEdit
-                            ? 'Kayıt güncellendi'
-                            : (type == 'advance'
-                                ? 'Avans kaydedildi'
-                                : 'Borç kaydedildi'),
+                        isEdit ? 'Kayıt güncellendi' : 'Avans kaydedildi',
                       );
                     }
                   } catch (_) {
@@ -898,15 +850,14 @@ Future<void> _showAdvanceDebtDialog(
 }
 
 /// Seçilen tarih zaten ödenmiş (kapalı) bir döneme denk geldiğinde, girilen
-/// avans/borç maaştan otomatik düşülmeyeceği için kullanıcıdan onay ister.
+/// avans maaştan otomatik düşülmeyeceği için kullanıcıdan onay ister.
 /// `true` dönerse kullanıcı yine de kaydetmeyi seçmiştir.
 Future<bool> _confirmClosedPeriodEntry(
   BuildContext context, {
   required DateTime date,
   required DateTime lastPaidEnd,
-  required String type,
 }) async {
-  final label = type == 'advance' ? 'avans' : 'borç';
+  const label = 'avans';
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(

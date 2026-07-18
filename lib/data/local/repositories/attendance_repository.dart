@@ -209,17 +209,26 @@ class AttendanceRepository {
     return total;
   }
 
+  /// [createdUpTo] verilirse yalnızca o ana kadar oluşturulmuş
+  /// (createdAt ≤ createdUpTo) kayıtlar döner; geçmiş bir ödemenin dönemini,
+  /// ödeme anındaki puantajıyla yeniden kurmak için kullanılır.
   Future<List<AttendanceEntry>> workerEntriesInRange({
     required String workerId,
     required DateTime start,
     required DateTime end,
+    DateTime? createdUpTo,
   }) {
     final query = _db.select(_db.attendanceEntries)
       ..where(
-        (a) =>
-            a.workerId.equals(workerId) &
-            a.workDate.isBetweenValues(start, end) &
-            a.deletedAt.isNull(),
+        (a) {
+          var cond = a.workerId.equals(workerId) &
+              a.workDate.isBetweenValues(start, end) &
+              a.deletedAt.isNull();
+          if (createdUpTo != null) {
+            cond = cond & a.createdAt.isSmallerOrEqualValue(createdUpTo);
+          }
+          return cond;
+        },
       )
       ..orderBy([(a) => OrderingTerm(expression: a.workDate)]);
     return query.get();
@@ -264,6 +273,30 @@ class AttendanceRepository {
     return PayrollCalculator.workedEquivalent(
       entries.map((e) => AttendanceStatusX.fromCode(e.status)),
     );
+  }
+
+  /// Tüm (silinmemiş) yoklama günlerinin yevmiye tutarını, her günü kendi
+  /// günündeki yevmiyeyle fiyatlayarak toplar. [wageForDate] o günün
+  /// yevmiyesini döndürür (tarih bazlı yevmiye; bkz. WageHistory). Böylece
+  /// zam yalnızca ileriye dönük etki eder, geçmiş yeniden fiyatlanmaz.
+  Future<double> lifetimeWageGross(
+    String workerId,
+    double Function(DateTime date) wageForDate,
+  ) async {
+    final entries = await (_db.select(_db.attendanceEntries)
+          ..where(
+            (a) => a.workerId.equals(workerId) & a.deletedAt.isNull(),
+          ))
+        .get();
+    double total = 0;
+    for (final e in entries) {
+      final eq = PayrollCalculator.workedEquivalent(
+        [AttendanceStatusX.fromCode(e.status)],
+      );
+      if (eq == 0) continue;
+      total += wageForDate(e.workDate) * eq;
+    }
+    return total;
   }
 
   Future<double> totalLocationBonus(String workerId) async {

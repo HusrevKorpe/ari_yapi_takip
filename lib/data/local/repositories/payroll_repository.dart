@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../shared/attendance_status.dart';
 import '../../../shared/month_utils.dart';
 import '../../../shared/payroll_calculator.dart';
+import '../../../shared/wage_history.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
@@ -33,14 +34,19 @@ class PayrollRepository {
   final SyncContext _ctx;
 
   /// [includeCarryOver] true ise, ödenmiş dönemlere sonradan girilen
-  /// puantaj/avans/borç kayıtlarından doğan fark (devreden bakiye) hesaba
+  /// puantaj/avans kayıtlarından doğan fark (devreden bakiye) hesaba
   /// katılır ve `net` tüm geçmişin gerçek pozisyonunu gösterir. Geçmiş bir
   /// ödemenin dönem dökümünü yeniden üretirken false kalmalıdır.
+  /// [asOf] verilirse yalnızca o ana kadar GİRİLMİŞ (createdAt ≤ asOf) puantaj
+  /// kayıtları hesaba katılır. Geçmiş bir ödemenin dönem dökümünü, ödeme
+  /// anındaki haliyle yeniden kurmak için kullanılır (ödemeden sonra girilen
+  /// günler listeye sızıp donmuş "çalışılan gün" sayısıyla çelişmesin diye).
   Future<PayrollResult> calculate({
     required Worker worker,
     required DateTime periodStart,
     required DateTime periodEnd,
     bool includeCarryOver = false,
+    DateTime? asOf,
   }) async {
     final start = normalizeDay(periodStart);
     final end = DateTime(
@@ -55,6 +61,7 @@ class PayrollRepository {
       workerId: worker.id,
       start: start,
       end: end,
+      createdUpTo: asOf,
     );
 
     final parsedEntries = attendanceEntries
@@ -94,12 +101,12 @@ class PayrollRepository {
       bonusBySiteId = {};
     }
 
-    final calculation = PayrollCalculator.calculate(
-      workedDayEquivalent: worked,
-      dailyWage: worker.dailyWage,
-      deductions: deductions,
-      locationBonus: locationBonus,
-    );
+    // Tarih bazlı yevmiye: her gün, o gün geçerli olan yevmiyeyle fiyatlanır.
+    // Geçmiş boşsa (hiç zam yok) tüm günler güncel yevmiyeyi alır — eski
+    // davranış. Zam yalnızca ileriye dönük etki eder.
+    final wages = WageHistory.decode(worker.wageHistory);
+    double wageForDate(DateTime d) => wages.wageForDate(d, worker.dailyWage);
+
     final attendanceDays = parsedEntries.map((p) {
       final dayEquivalent = PayrollCalculator.workedEquivalent([p.status]);
       double dayBonus = 0;
@@ -116,16 +123,21 @@ class PayrollRepository {
         date: p.entry.workDate,
         status: p.status,
         dayEquivalent: dayEquivalent,
-        dailyAmount: worker.dailyWage * dayEquivalent,
+        dailyAmount: wageForDate(p.entry.workDate) * dayEquivalent,
         siteId: p.entry.siteId,
         siteBonus: dayBonus,
       );
     }).toList();
 
+    final wageGross =
+        attendanceDays.fold<double>(0, (sum, d) => sum + d.dailyAmount);
+    final gross = wageGross + locationBonus;
+    final net = gross - deductions;
+
     double carryOver = 0;
     if (includeCarryOver) {
       final lifetimeNet = await _lifetimeNet(worker);
-      carryOver = lifetimeNet - calculation.net;
+      carryOver = lifetimeNet - net;
       // Kayan nokta artıklarını bakiye sanmayalım.
       if (carryOver.abs() < 0.005) carryOver = 0;
     }
@@ -135,12 +147,12 @@ class PayrollRepository {
       periodStart: start,
       periodEnd: normalizeDay(periodEnd),
       attendanceDays: attendanceDays,
-      workedDayEquivalent: calculation.workedDayEquivalent,
-      locationBonus: calculation.locationBonus,
-      gross: calculation.gross,
-      deductions: calculation.deductions,
+      workedDayEquivalent: worked,
+      locationBonus: locationBonus,
+      gross: gross,
+      deductions: deductions,
       carryOver: carryOver,
-      net: calculation.net + carryOver,
+      net: net + carryOver,
     );
   }
 
@@ -170,15 +182,19 @@ class PayrollRepository {
   }
 
   /// Tüm geçmişin net pozisyonu — workerLifetimeStatsProvider ile aynı
-  /// formül: gün karşılığı × yevmiye + prim + borç − avans − ödenen.
+  /// formül: (tarih bazlı yevmiye toplamı) + prim − avans − ödenen.
   Future<double> _lifetimeNet(Worker worker) async {
-    final worked = await _attendanceRepository.totalWorkedDayEquivalent(
+    // Tarih bazlı yevmiye: geçmişteki her gün kendi günündeki yevmiyeyle
+    // toplanır ki zam ödenmiş/kapanmış dönemleri yeniden fiyatlamasın.
+    final wages = WageHistory.decode(worker.wageHistory);
+    final wageGross = await _attendanceRepository.lifetimeWageGross(
       worker.id,
+      (d) => wages.wageForDate(d, worker.dailyWage),
     );
     final bonus = worker.receivesBonus
         ? await _attendanceRepository.totalLocationBonus(worker.id)
         : 0.0;
-    final totals = await _advanceDebtRepository.lifetimeTotals(worker.id);
+    final advances = await _advanceDebtRepository.totalAdvances(worker.id);
     final payments = await (_db.select(_db.payrollPayments)
           ..where(
             (p) => p.workerId.equals(worker.id) & p.deletedAt.isNull(),
@@ -186,14 +202,17 @@ class PayrollRepository {
         .get();
     final paid = payments.fold<double>(0, (sum, p) => sum + p.amount);
 
-    return worked * worker.dailyWage +
-        bonus +
-        totals.debts -
-        totals.advances -
-        paid;
+    return wageGross + bonus - advances - paid;
   }
 
-  Future<void> saveSnapshot(PayrollResult result) async {
+  /// Snapshot'ı tek başına (kendi transaction'ında) dondurur.
+  Future<void> saveSnapshot(PayrollResult result) => writeSnapshot(result);
+
+  /// Ödeme kaydıyla aynı transaction içinden de çağrılabilen dondurma. Bir
+  /// transaction içinde çağrıldığında Drift savepoint kullanır; böylece donmuş
+  /// döküm ile ödeme tek atomik birim olur ([PaymentRepository.recordPayment])
+  /// ve reddedilen bir çift ödeme mevcut snapshot'ı bozamaz.
+  Future<void> writeSnapshot(PayrollResult result) async {
     final periodKey = _periodKey(result.periodStart, result.periodEnd);
     final now = DateTime.now();
     final daysJson = jsonEncode(

@@ -5,6 +5,7 @@ extension WorkerSyncExt on Worker {
     'id': id,
     'adSoyad': fullName,
     'gunlukUcret': dailyWage,
+    'ucretGecmisi': wageHistory,
     'varsayilanSantiyeId': defaultSiteId,
     'odemePeriyodu': payFrequency,
     'aktifMi': isActive,

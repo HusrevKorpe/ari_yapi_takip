@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers.dart';
 import '../../../data/local/app_database.dart';
-import '../../../data/local/repositories.dart';
 import '../../../shared/formatters.dart';
 import 'cancel_payment_dialog.dart';
 import 'day_detail_expander.dart';
@@ -76,8 +75,95 @@ class _PaymentDetailSheet extends ConsumerWidget {
               data: (snapshot) => _DetailBody(
                 payment: payment,
                 snapshot: snapshot,
-                days: daysAsync.asData?.value ?? const [],
+                breakdown: daysAsync.asData?.value,
+                breakdownReady: daysAsync.hasValue,
                 canCancel: isLatest,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Eski ödemede (donmuş döküm yokken) ödeme anına göre yeniden kurulan döküm
+/// için not. Liste, ödeme yapıldığı ana kadar girilmiş günlerden oluşur ve
+/// üstteki donmuş özetle uyumludur; kullanıcı kaynağını bu notla anlar.
+class _LiveBreakdownNote extends StatelessWidget {
+  const _LiveBreakdownNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFDCDCDD)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.history_rounded,
+            size: 18,
+            color: Color(0xFF888888),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Bu eski ödemede günlük döküm ayrıca saklanmamıştı; aşağıdaki '
+              'liste ödemenin yapıldığı ana kadar girilmiş puantajdan yeniden '
+              'oluşturuldu ve yukarıdaki özetle uyumludur. (Ödemeden sonra o '
+              'döneme girilen günler burada görünmez; onlar sonraki döneme / '
+              'bakiyeye devreder.)',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: Color(0xFF6E6E6E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Eski ödeme için ne donmuş döküm var ne de güncel puantajdan gün üretilebildi
+/// (ör. çalışan silinmiş). Bu durumda yalnızca yukarıdaki özet gösterilebilir.
+class _BreakdownUnavailableNote extends StatelessWidget {
+  const _BreakdownUnavailableNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFDCDCDD)),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 18,
+            color: Color(0xFF888888),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Bu eski ödeme için günlük döküm bulunamadı. Yukarıdaki özet, '
+              'ödemenin yapıldığı andaki değerleri gösterir.',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: Color(0xFF6E6E6E),
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -100,13 +186,17 @@ class _DetailBody extends StatelessWidget {
   const _DetailBody({
     required this.payment,
     required this.snapshot,
-    required this.days,
+    required this.breakdown,
+    required this.breakdownReady,
     required this.canCancel,
   });
 
   final PayrollPayment payment;
   final PayrollSnapshot? snapshot;
-  final List<PayrollAttendanceDay> days;
+  // Günlük döküm + kaynağı (donmuş / canlı). null = sağlayıcı henüz yüklenmedi.
+  final PaymentBreakdown? breakdown;
+  // Döküm sağlayıcısı yüklendi mi? Yüklenirken not/döküm gösterme (titreme olmasın).
+  final bool breakdownReady;
   final bool canCancel;
 
   @override
@@ -154,10 +244,11 @@ class _DetailBody extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (snapshot!.deductions < 0)
-            // Borç avansı aştığında kesinti negatiftir; net'i artıran bu tutarı
-            // "Kesinti" gibi göstermeyip ayrı bir "Alacak" satırı veriyoruz.
+            // Eski ödemelerde (borç kaydı henüz varken donmuş) kesinti negatif
+            // olabilir; net'i artıran bu tutarı "Kesinti" gibi göstermeyip ayrı
+            // bir "Alacak" satırı veriyoruz.
             PayrollSummaryRow(
-              label: 'Alacak (Avans+Borç)',
+              label: 'Alacak',
               value: '+${formatMoney(-snapshot!.deductions)}',
               valueColor: const Color(0xFF1A6B5A),
             )
@@ -174,7 +265,13 @@ class _DetailBody extends StatelessWidget {
             valueColor: const Color(0xFF1A6B5A),
           ),
         ],
-        if (days.isNotEmpty) ...[
+        if (breakdownReady && breakdown != null && breakdown!.days.isNotEmpty) ...[
+          // Canlı yeniden hesaplanmış dökümde, özetle çelişebileceği uyarısı
+          // önce gelsin ki kullanıcı listeyi doğru okusun.
+          if (!breakdown!.isFrozen) ...[
+            const SizedBox(height: 16),
+            const _LiveBreakdownNote(),
+          ],
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
@@ -182,8 +279,14 @@ class _DetailBody extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFDCDCDD)),
             ),
-            child: DayDetailExpander(days: days),
+            child: DayDetailExpander(days: breakdown!.days),
           ),
+        ],
+        // Ne donmuş döküm var ne de güncel puantajdan gün üretilebildi
+        // (ör. çalışan silinmiş): yalnızca özet gösterilebilir.
+        if (breakdownReady && breakdown != null && breakdown!.days.isEmpty) ...[
+          const SizedBox(height: 16),
+          const _BreakdownUnavailableNote(),
         ],
         const SizedBox(height: 24),
         if (canCancel)

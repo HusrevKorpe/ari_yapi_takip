@@ -277,6 +277,9 @@ class PullSyncService {
             id: id,
             fullName: _str(_value(data, 'adSoyad', 'fullName')),
             dailyWage: _double(_value(data, 'gunlukUcret', 'dailyWage')),
+            wageHistory: Value(
+              _nullableStr(_value(data, 'ucretGecmisi', 'wageHistory')),
+            ),
             defaultSiteId: Value(
               _nullableStr(
                 _value(data, 'varsayilanSantiyeId', 'defaultSiteId'),

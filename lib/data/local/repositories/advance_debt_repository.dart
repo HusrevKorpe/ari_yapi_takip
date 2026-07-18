@@ -54,9 +54,7 @@ class AdvanceDebtRepository {
     });
   }
 
-  Future<({double advances, double debts})> lifetimeTotals(
-    String workerId,
-  ) async {
+  Future<double> totalAdvances(String workerId) async {
     final entries = await (_db.select(_db.advanceDebts)
           ..where(
             (a) => a.workerId.equals(workerId) & a.deletedAt.isNull(),
@@ -64,15 +62,12 @@ class AdvanceDebtRepository {
         .get();
 
     double advances = 0;
-    double debts = 0;
     for (final e in entries) {
       if (e.type == 'advance') {
         advances += e.amount;
-      } else if (e.type == 'debt') {
-        debts += e.amount;
       }
     }
-    return (advances: advances, debts: debts);
+    return advances;
   }
 
   Future<double> totalDeductions({
@@ -93,8 +88,6 @@ class AdvanceDebtRepository {
     for (final e in entries) {
       if (e.type == 'advance') {
         total += e.amount;
-      } else if (e.type == 'debt') {
-        total -= e.amount;
       }
     }
     return total;
@@ -102,7 +95,12 @@ class AdvanceDebtRepository {
 
   Stream<List<AdvanceDebt>> watchByWorker(String workerId) {
     final query = _db.select(_db.advanceDebts)
-      ..where((a) => a.workerId.equals(workerId) & a.deletedAt.isNull())
+      ..where(
+        (a) =>
+            a.workerId.equals(workerId) &
+            a.type.equals('advance') &
+            a.deletedAt.isNull(),
+      )
       ..orderBy([(a) => OrderingTerm.desc(a.eventDate)]);
     return query.watch();
   }
@@ -156,7 +154,7 @@ class AdvanceDebtRepository {
         id: _uuid.v4(),
         entityType: 'advance_debt',
         entityId: id,
-        message: 'Avans/Borc kaydi guncellendi',
+        message: 'Avans kaydi guncellendi',
       );
     });
   }
@@ -199,7 +197,7 @@ class AdvanceDebtRepository {
         id: _uuid.v4(),
         entityType: 'advance_debt',
         entityId: id,
-        message: 'Avans/Borc kaydi silindi',
+        message: 'Avans kaydi silindi',
       );
     });
   }

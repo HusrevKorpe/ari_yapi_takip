@@ -30,7 +30,6 @@ class WorkerStatsGrid extends ConsumerWidget {
       data: (stats) => _StatsContent(
         workedDays: stats.workedDayEquivalent,
         advances: stats.totalAdvances,
-        debts: stats.totalDebts,
         paid: stats.totalPaid,
       ),
     );
@@ -41,13 +40,11 @@ class _StatsContent extends StatelessWidget {
   const _StatsContent({
     required this.workedDays,
     required this.advances,
-    required this.debts,
     required this.paid,
   });
 
   final double workedDays;
   final double advances;
-  final double debts;
   final double paid;
 
   @override
@@ -78,28 +75,12 @@ class _StatsContent extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: [
-            Expanded(
-              child: _StatCard(
-                icon: Icons.arrow_downward_rounded,
-                tint: AppColors.warning,
-                tintBg: AppColors.warningLight,
-                label: 'Toplam Avans',
-                value: formatMoney(advances),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: _StatCard(
-                icon: Icons.arrow_upward_rounded,
-                tint: AppColors.danger,
-                tintBg: AppColors.dangerLight,
-                label: 'Toplam Borç',
-                value: formatMoney(debts),
-              ),
-            ),
-          ],
+        _StatCard(
+          icon: Icons.arrow_downward_rounded,
+          tint: AppColors.warning,
+          tintBg: AppColors.warningLight,
+          label: 'Toplam Avans',
+          value: formatMoney(advances),
         ),
       ],
     );

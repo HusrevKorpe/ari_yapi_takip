@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../shared/wage_history.dart';
 import '../../sync/sync_context.dart';
 import '../../sync/sync_mappers.dart';
 import '../app_database.dart';
@@ -31,6 +32,9 @@ class WorkerRepository {
         .getSingleOrNull();
   }
 
+  /// [wageEffectiveFrom]: yevmiye değiştiyse zammın hangi günden itibaren
+  /// geçerli olacağı (varsayılan: bugün). O günden önceki günler eski
+  /// yevmiyeyle hesaplanmaya devam eder — geçmiş yeniden fiyatlanmaz.
   Future<void> saveWorker({
     String? id,
     required String fullName,
@@ -40,17 +44,35 @@ class WorkerRepository {
     String payFrequency = 'weekly',
     bool isActive = true,
     bool receivesBonus = true,
+    DateTime? wageEffectiveFrom,
   }) async {
     final workerId = id ?? _uuid.v4();
     final now = DateTime.now();
 
     await _db.transaction(() async {
       int nextVersion = 1;
+      // Geçmişi olduğu gibi taşı; yalnızca yevmiye değiştiyse yeni segment ekle.
+      String? wageHistoryJson;
       if (id != null) {
         final existing = await (_db.select(_db.workers)
               ..where((w) => w.id.equals(id)))
             .getSingleOrNull();
-        if (existing != null) nextVersion = existing.syncVersion + 1;
+        if (existing != null) {
+          nextVersion = existing.syncVersion + 1;
+          wageHistoryJson = existing.wageHistory;
+          // Yevmiye değiştiyse: değişiklikten önceki günler eski yevmiyede
+          // kalsın diye geçmişe yeni bir segment ekle (ilk değişiklikte eski
+          // yevmiye taban olarak tohumlanır).
+          if (existing.dailyWage != dailyWage) {
+            wageHistoryJson = WageHistory.decode(existing.wageHistory)
+                .withChange(
+                  effectiveFrom: wageEffectiveFrom ?? now,
+                  newWage: dailyWage,
+                  previousWage: existing.dailyWage,
+                )
+                .encode();
+          }
+        }
       }
 
       await _db.into(_db.workers).insertOnConflictUpdate(
@@ -58,6 +80,7 @@ class WorkerRepository {
           id: workerId,
           fullName: fullName,
           dailyWage: dailyWage,
+          wageHistory: Value(wageHistoryJson),
           defaultSiteId: Value(defaultSiteId),
           payFrequency: Value(payFrequency),
           notes: Value(notes),
